@@ -766,8 +766,8 @@ if (typeof document !== 'undefined') (function () {
   let playerName = LS('bobsled_name'), playerGroup = LS('bobsled_group'), playerCC = LS('bobsled_cc') || detectCC();
   const lb = () => window.LB || null;
   const lbOn = () => !!(window.FIREBASE_CONFIG || window.LB);
-  // 期間ごとのランキング：今日・今週・今月・今年（日本時間で区切る）と全期間
-  const PERIODS = ['d', 'w', 'm', 'y', 'all'];
+  // 期間ごとのランキング：今日・今週・今月（日本時間で区切る）と全期間
+  const PERIODS = ['d', 'w', 'm', 'all'];
   const PER_NAME = { d: ['今日', 'Today'], w: ['今週', 'This week'], m: ['今月', 'This month'], y: ['今年', 'This year'], all: ['全期間', 'All time'] };
   const perName = k => L(PER_NAME[k][0], PER_NAME[k][1]);
   function periodKeys(date = new Date()) {
@@ -791,7 +791,7 @@ if (typeof document !== 'undefined') (function () {
   // ゴールしたとき：期間ごとに更新したかを記録し、更新した期間を返す
   function updatePeriods(def, run) {
     const pp = loadPP(def), keysNow = periodKeys(), improved = [];
-    for (const per of ['d', 'w', 'm', 'y']) {
+    for (const per of ['d', 'w', 'm']) {
       const cur = pp[per];
       if (!cur || cur.k !== keysNow[per] || run.t < cur.t) { pp[per] = Object.assign({ k: keysNow[per] }, run); improved.push(per); }
     }
@@ -839,7 +839,7 @@ if (typeof document !== 'undefined') (function () {
     for (const def of COURSES) {
       const r = loadBestOf(def);
       if (r) submitRun(def, r, false, ['all']);
-      for (const per of ['d', 'w', 'm', 'y']) { const b = myPeriodBest(def, per); if (b) submitRun(def, b, false, [per]); }
+      for (const per of ['d', 'w', 'm']) { const b = myPeriodBest(def, per); if (b) submitRun(def, b, false, [per]); }
     }
   }
   addEventListener('lb-ready', () => {
@@ -1050,7 +1050,7 @@ if (typeof document !== 'undefined') (function () {
       list.push({ id: 'rkNext', x: W - 86, y: 92, w: 50, h: 40, text: '▶' });
       list.push({ id: 'tabAll', x: 40, y: 140, w: 196, h: 38, text: L('全体', 'WORLD'), main: rk.tab === 'all' });
       list.push({ id: 'tabGroup', x: 244, y: 140, w: 196, h: 38, text: L('グループ', 'GROUP'), main: rk.tab === 'group' });
-      PERIODS.forEach((per, i) => list.push({ id: 'per_' + per, x: 40 + i * 80, y: 186, w: 76, h: 32, text: perName(per), main: rk.per === per }));
+      PERIODS.forEach((per, i) => list.push({ id: 'per_' + per, x: 40 + i * 101, y: 186, w: 95, h: 32, text: perName(per), main: rk.per === per }));
       list.push({ id: 'back', x: 40, y: 616, w: 196, h: 48, text: L('戻る', 'BACK') });
       list.push({ id: 'profile', x: 244, y: 616, w: 196, h: 48, text: L('名前・グループ', 'NAME & GROUP') });
     }
@@ -2009,7 +2009,7 @@ if (typeof document !== 'undefined') (function () {
         if (d !== null) centerText(L('コースレコード ', 'Record ') + fmt(rec.t) + (rec.name && !rec.mine ? ' (' + rec.name + ')' : '') + '  ' + fmtD(d), 300, 17, dCol(d), '800');
         if (newRecord) centerText(L('自己ベスト更新！', 'NEW PERSONAL BEST!') + (prevPb ? '  (' + fmtD(S.finalT - prevPb.t) + ')' : ''), 324, 14, '#ffd166', '800');
         else if (perImproved.length) {
-          const big = ['y', 'm', 'w', 'd'].find(p => perImproved.includes(p));
+          const big = ['m', 'w', 'd'].find(p => perImproved.includes(p));
           centerText(L(perName(big) + 'のベスト更新！', perName(big) + "'s best!") + (pb ? L('　自己ベスト ', '  PB ') + fmt(pb.t) : ''), 324, 14, '#ffd166', '800');
         }
         else if (pb) centerText(L('自己ベスト ', 'PB ') + fmt(pb.t) + '  (' + fmtD(S.finalT - pb.t) + ')', 324, 13, '#9fc3e0', '700');
