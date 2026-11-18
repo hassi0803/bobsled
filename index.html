@@ -20,8 +20,8 @@
   #prof form{background:#13263a;color:#fff;border-radius:14px;padding:22px 20px;width:min(340px,88vw);box-shadow:0 10px 40px rgba(0,0,0,.5)}
   #prof h2{margin:0 0 14px;font-size:19px}
   #prof label{display:block;font-size:13px;font-weight:700;color:#9fc3e0;margin:12px 0 5px}
-  #prof input{width:100%;box-sizing:border-box;font-size:17px;padding:10px 12px;border-radius:9px;border:2px solid #2d4a66;background:#0d1b2a;color:#fff}
-  #prof input:focus{outline:none;border-color:#4fc3f7}
+  #prof input,#prof select{width:100%;box-sizing:border-box;font-size:17px;padding:10px 12px;border-radius:9px;border:2px solid #2d4a66;background:#0d1b2a;color:#fff}
+  #prof input:focus,#prof select:focus{outline:none;border-color:#4fc3f7}
   #prof small{display:block;color:#9fc3e0;font-size:11.5px;margin-top:5px;line-height:1.5}
   #prof .err{color:#ff6b6b;font-size:13px;min-height:18px;margin-top:10px;font-weight:700}
   #prof .row{display:flex;gap:10px;margin-top:8px}
@@ -32,7 +32,14 @@
 <script>
 // ===== ランキング（Firebase）の設定 =====
 // Firebase コンソールでコピーした firebaseConfig の中身をここに貼る。null のままならランキングなしで動く
-window.FIREBASE_CONFIG = null;
+window.FIREBASE_CONFIG = {
+  apiKey: "AIzaSyDPBJVsBNHWSm1bS1rPFEA_19Pvgkcwe54",
+  authDomain: "bobsled-hassi0803.firebaseapp.com",
+  projectId: "bobsled-hassi0803",
+  storageBucket: "bobsled-hassi0803.firebasestorage.app",
+  messagingSenderId: "37054217867",
+  appId: "1:37054217867:web:2a7ca03d41e0dbc9ef5e8e"
+};
 </script>
 <script type="module">
 // Firebase を読み込み、匿名ログインして window.LB（ランキングの読み書き）を用意する
@@ -59,10 +66,10 @@ if (CFG) (async () => {
         const ref = F.doc(col(board), uid);
         const cur = await F.getDoc(ref);
         if (cur.exists() && cur.data().t <= run.t) {
-          if (cur.data().name !== run.name) await F.updateDoc(ref, { name: run.name, ts: F.serverTimestamp() });
+          if (cur.data().name !== run.name || cur.data().cc !== (run.cc || '')) await F.updateDoc(ref, { name: run.name, cc: run.cc || '', ts: F.serverTimestamp() });
           return false;
         }
-        await F.setDoc(ref, { name: run.name, t: run.t, splits: run.splits, crashed: run.crashed, ts: F.serverTimestamp() });
+        await F.setDoc(ref, { name: run.name, cc: run.cc || '', t: run.t, splits: run.splits, crashed: run.crashed, ts: F.serverTimestamp() });
         return true;
       },
     };
@@ -78,14 +85,16 @@ if (CFG) (async () => {
 <canvas id="c"></canvas>
 <div id="prof" hidden>
   <form id="pfForm" autocomplete="off">
-    <h2>名前・グループ</h2>
-    <label for="pfName">名前（ランキングに表示）</label>
-    <input id="pfName" maxlength="12" placeholder="例：たろう" required>
-    <label for="pfGroup">グループの合言葉（なくてもOK）</label>
-    <input id="pfGroup" maxlength="20" placeholder="例：〇〇大ボブスレー部">
-    <small>同じ合言葉を入れた人どうしで、グループランキングができます。</small>
+    <h2 id="pfT">名前・グループ</h2>
+    <label for="pfName" id="pfNameL">名前（ランキングに表示）</label>
+    <input id="pfName" maxlength="12" required>
+    <label for="pfCC" id="pfCCL">国・地域</label>
+    <select id="pfCC"></select>
+    <label for="pfGroup" id="pfGroupL">グループの合言葉（なくてもOK）</label>
+    <input id="pfGroup" maxlength="20">
+    <small id="pfHelp">同じ合言葉を入れた人どうしで、グループランキングができます。</small>
     <div class="err" id="pfErr"></div>
-    <div class="row"><button type="button" class="cancel" id="pfCancel">キャンセル</button><button type="submit" class="ok">保存</button></div>
+    <div class="row"><button type="button" class="cancel" id="pfCancel">キャンセル</button><button type="submit" class="ok" id="pfOk">保存</button></div>
   </form>
 </div>
 <script>
@@ -163,7 +172,7 @@ function wallTop(b, fh = floorOf(b)) {
 // =====================================================================
 const COURSES = [
   {
-    id: 'ice', name: 'ICE RUN', sub: '架空コース', best: 'bobsled_pb_ice_v4', rec: [4.92, 20.47, 32.03, 42.55, 52.50, 62.45],
+    id: 'ice', name: 'ICE RUN', sub: '架空コース', subEn: 'Original track', best: 'bobsled_pb_ice_v4', rec: [4.92, 20.47, 32.03, 42.55, 52.50, 62.45],
     startLen: 1200, startG: 0.10, finLen: 1600, finG: 0.06, len: 1609, gk: 1.10,
     layout: [
       { a:   70, R: 1500, g: 0.10, gap: 500 },
@@ -189,7 +198,7 @@ const COURSES = [
     //  角度・左右 … 長野市の公式コース図から読み取り
     //  区間の長さ … 滑走カメラ映像（YouTube）の各カーブ・直線の所要時間から速度推定で逆算
     //  競技距離 1,360m・15カーブ。上り坂：9カーブ後（約4%）と 11〜12カーブ間（約10%）
-    id: 'nagano', name: 'NAGANO SPIRAL', sub: '長野スパイラル（1998年大会コース）', best: 'bobsled_pb_nagano_v2', rec: [4.93, 18.88, 29.25, 38.79, 49.73, 60.00],
+    id: 'nagano', name: 'NAGANO SPIRAL', sub: '長野スパイラル（1998年大会コース）', subEn: 'Nagano Spiral (1998 Games track)', best: 'bobsled_pb_nagano_v2', rec: [4.93, 18.88, 29.25, 38.79, 49.73, 60.00],
     startLen: 2320, startG: 0.095, finLen: 1800, finG: 0.05, len: 1360, gk: 1.08,
     layout: [
       { a:  165, R:  720, g: 0.094, gap: 2800 },
@@ -502,6 +511,15 @@ if (typeof document !== 'undefined') (function () {
   addEventListener('resize', resize);
   resize();
 
+  // ---- 言語（日本語／英語）。端末の言語で自動、タイトルで切り替え可 ----
+  let LANG = 'ja';
+  try { LANG = localStorage.getItem('bobsled_lang') || ((navigator.language || '').toLowerCase().startsWith('ja') ? 'ja' : 'en'); } catch (e) {}
+  const L = (ja, en) => LANG === 'ja' ? ja : en;
+  const CURVE_EN = { 'ラビリンス': 'Labyrinth', 'クライゼル': 'Kreisel', 'ヘアピン': 'Hairpin', 'ほぼ直線': 'Nearly straight' };
+  const curveName = n => n ? L(n, CURVE_EN[n] || n) : '';
+  // 国旗（ISO 2文字 → 絵文字）
+  const flag = cc => cc && /^[A-Z]{2}$/.test(cc) ? String.fromCodePoint(...[...cc].map(ch => 0x1F1A5 + ch.charCodeAt(0))) : '';
+
   // ---- 色 ----
   const hex = h => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
   const FOG = hex('#dfe9f3');
@@ -732,7 +750,20 @@ if (typeof document !== 'undefined') (function () {
   //  ランキング（Firebase）。全体と、合言葉ごとのグループの2種類
   // =================================================================
   const LS = (k, v) => { try { if (v === undefined) return localStorage.getItem(k) || ''; localStorage.setItem(k, v); } catch (e) {} return ''; };
-  let playerName = LS('bobsled_name'), playerGroup = LS('bobsled_group');
+  // ボブスレーの盛んな国を中心に。端末の地域が一覧にあれば最初からそれを選ぶ
+  const COUNTRIES = [['JP', '日本', 'Japan'], ['US', 'アメリカ', 'United States'], ['CA', 'カナダ', 'Canada'], ['DE', 'ドイツ', 'Germany'],
+    ['CH', 'スイス', 'Switzerland'], ['AT', 'オーストリア', 'Austria'], ['IT', 'イタリア', 'Italy'], ['FR', 'フランス', 'France'],
+    ['GB', 'イギリス', 'United Kingdom'], ['NO', 'ノルウェー', 'Norway'], ['SE', 'スウェーデン', 'Sweden'], ['FI', 'フィンランド', 'Finland'],
+    ['LV', 'ラトビア', 'Latvia'], ['LT', 'リトアニア', 'Lithuania'], ['EE', 'エストニア', 'Estonia'], ['PL', 'ポーランド', 'Poland'],
+    ['CZ', 'チェコ', 'Czechia'], ['SK', 'スロバキア', 'Slovakia'], ['RO', 'ルーマニア', 'Romania'], ['NL', 'オランダ', 'Netherlands'],
+    ['BE', 'ベルギー', 'Belgium'], ['MC', 'モナコ', 'Monaco'], ['ES', 'スペイン', 'Spain'], ['UA', 'ウクライナ', 'Ukraine'],
+    ['KR', '韓国', 'South Korea'], ['CN', '中国', 'China'], ['TW', '台湾', 'Taiwan'], ['AU', 'オーストラリア', 'Australia'],
+    ['NZ', 'ニュージーランド', 'New Zealand'], ['JM', 'ジャマイカ', 'Jamaica'], ['TT', 'トリニダード・トバゴ', 'Trinidad and Tobago'],
+    ['NG', 'ナイジェリア', 'Nigeria'], ['GH', 'ガーナ', 'Ghana'], ['BR', 'ブラジル', 'Brazil'], ['AR', 'アルゼンチン', 'Argentina'],
+    ['MX', 'メキシコ', 'Mexico'], ['IN', 'インド', 'India'], ['TH', 'タイ', 'Thailand'], ['PH', 'フィリピン', 'Philippines'],
+    ['SG', 'シンガポール', 'Singapore'], ['ZA', '南アフリカ', 'South Africa'], ['IL', 'イスラエル', 'Israel'], ['TR', 'トルコ', 'Türkiye']];
+  const detectCC = () => { const m = /[-_]([A-Za-z]{2})$/.exec(navigator.language || ''); const c = m ? m[1].toUpperCase() : (LANG === 'ja' ? 'JP' : ''); return COUNTRIES.some(x => x[0] === c) ? c : ''; };
+  let playerName = LS('bobsled_name'), playerGroup = LS('bobsled_group'), playerCC = LS('bobsled_cc') || detectCC();
   const lb = () => window.LB || null;
   const lbOn = () => !!(window.FIREBASE_CONFIG || window.LB);
   const boardId = (def, g) => def.id + '__' + (g ? 'g_' + g : 'all');
@@ -747,24 +778,24 @@ if (typeof document !== 'undefined') (function () {
     try {
       const top = (await lb().top(boardId(def, ''), 1))[0];
       const d = defaultRec(def);
-      const r = top && (!d || top.t < d.t) ? { t: top.t, splits: top.splits, mine: top.uid === lb().uid, name: top.name } : d;
+      const r = top && (!d || top.t < d.t) ? { t: top.t, splits: top.splits, mine: top.uid === lb().uid, name: top.name, cc: top.cc || '' } : d;
       saveJSON(crKey(def), r);
       const racing = mode === 'countdown' || (mode === 'play' && S.phase !== 'finish' && S.phase !== 'dnf');
       if (def === COURSE_DEF && !racing) rec = r;
     } catch (e) {}
   }
   async function submitRun(def, run, visible) {
-    if (!lb()) { if (visible) lbMsg = window.LB_ERROR ? 'ランキングに接続できません' : ''; return; }
+    if (!lb()) { if (visible) lbMsg = window.LB_ERROR ? L('ランキングに接続できません', 'Could not connect to the ranking') : ''; return; }
     if (!playerName) { pendingRun = { def, run }; if (visible) openProfile(); return; }
-    const data = { name: playerName, t: Math.round(run.t * 1000) / 1000, splits: run.splits.map(x => Math.round(x * 1000) / 1000), crashed: !!run.crashed };
+    const data = { name: playerName, cc: playerCC, t: Math.round(run.t * 1000) / 1000, splits: run.splits.map(x => Math.round(x * 1000) / 1000), crashed: !!run.crashed };
     if (data.splits.length !== 5) return;
     try {
-      if (visible) lbMsg = 'ランキングに登録中…';
+      if (visible) lbMsg = L('ランキングに登録中…', 'Submitting to the ranking…');
       await lb().submit(boardId(def, ''), data);
       if (playerGroup) await lb().submit(boardId(def, playerGroup), data);
-      if (visible) lbMsg = 'ランキングに登録しました';
+      if (visible) lbMsg = L('ランキングに登録しました', 'Submitted to the ranking');
       await refreshRec(def);
-    } catch (e) { console.warn(e); if (visible) lbMsg = 'ランキングに登録できませんでした'; }
+    } catch (e) { console.warn(e); if (visible) lbMsg = L('ランキングに登録できませんでした', 'Could not submit to the ranking'); }
   }
   // 端末に残っている自己ベストを、名前・グループの設定に合わせて送り直す
   function syncAll() { if (!lb() || !playerName) return; for (const def of COURSES) { const r = loadBestOf(def); if (r) submitRun(def, r, false); } }
@@ -776,7 +807,20 @@ if (typeof document !== 'undefined') (function () {
 
   // ---- 名前・グループの入力欄（HTML） ----
   const pf = document.getElementById('prof'), pfName = document.getElementById('pfName'), pfGroup = document.getElementById('pfGroup'), pfErr = document.getElementById('pfErr');
+  const pfCC = document.getElementById('pfCC');
+  const setText = (id, t) => { document.getElementById(id).textContent = t; };
   function openProfile() {
+    setText('pfT', L('名前・グループ', 'Name & Group'));
+    setText('pfNameL', L('名前（ランキングに表示）', 'Name (shown in the ranking)'));
+    setText('pfCCL', L('国・地域', 'Country / Region'));
+    setText('pfGroupL', L('グループの合言葉（なくてもOK）', 'Group code (optional)'));
+    setText('pfHelp', L('同じ合言葉を入れた人どうしで、グループランキングができます。', 'Players who enter the same code share a group ranking.'));
+    setText('pfCancel', L('キャンセル', 'Cancel')); setText('pfOk', L('保存', 'Save'));
+    pfName.placeholder = L('例：たろう', 'e.g. Alex'); pfGroup.placeholder = L('例：〇〇大ボブスレー部', 'e.g. my-bob-club');
+    pfCC.innerHTML = '';
+    const opts = [['', L('選ばない', 'Not set')]].concat(COUNTRIES.map(c => [c[0], flag(c[0]) + ' ' + L(c[1], c[2])]));
+    for (const [v, t] of opts) { const o = document.createElement('option'); o.value = v; o.textContent = t; pfCC.appendChild(o); }
+    pfCC.value = playerCC;
     pfName.value = playerName; pfGroup.value = playerGroup; pfErr.textContent = '';
     pf.hidden = false; keys.left = keys.right = false;
     setTimeout(() => pfName.focus(), 50);
@@ -786,9 +830,9 @@ if (typeof document !== 'undefined') (function () {
   document.getElementById('pfForm').addEventListener('submit', e => {
     e.preventDefault();
     const n = normName(pfName.value), g = normGroup(pfGroup.value);
-    if (!n) { pfErr.textContent = '名前を入れてください'; return; }
-    if (isNG(n) || isNG(g)) { pfErr.textContent = 'その言葉は使えません'; return; }
-    playerName = n; playerGroup = g; LS('bobsled_name', n); LS('bobsled_group', g);
+    if (!n) { pfErr.textContent = L('名前を入れてください', 'Please enter a name'); return; }
+    if (isNG(n) || isNG(g)) { pfErr.textContent = L('その言葉は使えません', 'That word is not allowed'); return; }
+    playerName = n; playerGroup = g; playerCC = pfCC.value; LS('bobsled_name', n); LS('bobsled_group', g); LS('bobsled_cc', playerCC);
     const pr = pendingRun;
     pf.hidden = true; pendingRun = null;
     if (pr) submitRun(pr.def, pr.run, true);
@@ -803,9 +847,9 @@ if (typeof document !== 'undefined') (function () {
   async function loadRanking() {
     const tok = ++rk.token;
     rk.rows = null; rk.me = null; rk.myRank = null; rk.err = '';
-    if (!lbOn()) { rk.err = 'ランキングはまだ準備中です'; rk.rows = []; return; }
-    if (!lb()) { rk.err = window.LB_ERROR ? 'ランキングに接続できません' : ''; if (window.LB_ERROR) rk.rows = []; return; }
-    if (rk.tab === 'group' && !playerGroup) { rk.err = '「名前・グループ」で合言葉を入れると、仲間だけのランキングになります'; rk.rows = []; return; }
+    if (!lbOn()) { rk.err = L('ランキングはまだ準備中です', 'The ranking is not available yet'); rk.rows = []; return; }
+    if (!lb()) { rk.err = window.LB_ERROR ? L('ランキングに接続できません', 'Could not connect to the ranking') : ''; if (window.LB_ERROR) rk.rows = []; return; }
+    if (rk.tab === 'group' && !playerGroup) { rk.err = L('「名前・グループ」で合言葉を入れると、仲間だけのランキングになります', 'Enter a group code in "Name & Group" to get a ranking just for your friends'); rk.rows = []; return; }
     const board = boardId(COURSE_DEF, rk.tab === 'group' ? playerGroup : '');
     try {
       const [rows, me] = await Promise.all([lb().top(board, RK_N), lb().mine(board)]);
@@ -815,22 +859,22 @@ if (typeof document !== 'undefined') (function () {
         const n = await lb().rankOf(board, me.t);
         if (tok === rk.token) rk.myRank = n;
       }
-    } catch (e) { console.warn(e); if (tok === rk.token) { rk.err = '読み込みに失敗しました'; rk.rows = []; } }
+    } catch (e) { console.warn(e); if (tok === rk.token) { rk.err = L('読み込みに失敗しました', 'Failed to load'); rk.rows = []; } }
   }
   function drawRanking() {
     ctx.fillStyle = 'rgba(13,27,42,0.78)'; ctx.fillRect(0, 0, W, H);
     panel(20, 30, W - 40, 670);
     centerText('🏆 RANKING', 72, 30, '#ffd166', '900');
     centerText(COURSE_DEF.name, 116, 20, '#ffffff', '900');
-    if (rk.tab === 'group' && playerGroup) centerText('グループ「' + playerGroup + '」', 204, 13, '#4fc3f7', '700');
+    if (rk.tab === 'group' && playerGroup) centerText(L('グループ「' + playerGroup + '」', 'Group "' + playerGroup + '"'), 204, 13, '#4fc3f7', '700');
     else {
       const d = defaultRec(COURSE_DEF), top = rk.rows && rk.rows[0];
-      if (d && !(top && top.t < d.t)) centerText('初期コースレコード ' + fmt(d.t) + '（これを切ると1位がコースレコード）', 204, 11.5, '#9fc3e0', '600');
-      else centerText('1位のタイムがコースレコードになります', 204, 11.5, '#9fc3e0', '600');
+      if (d && !(top && top.t < d.t)) centerText(L('初期コースレコード ' + fmt(d.t) + '（これを切ると1位がコースレコード）', 'Starting record ' + fmt(d.t) + ' — beat it and No.1 becomes the record'), 204, 11.5, '#9fc3e0', '600');
+      else centerText(L('1位のタイムがコースレコードになります', 'No.1 time is the course record'), 204, 11.5, '#9fc3e0', '600');
     }
     ctx.textAlign = 'left';
-    label('順位', 44, 228); label('名前', 96, 228);
-    ctx.textAlign = 'right'; label('タイム', 360, 228); label('1位との差', W - 40, 228);
+    label(L('順位', 'Rank'), 44, 228); label(L('名前', 'Name'), 96, 228);
+    ctx.textAlign = 'right'; label(L('タイム', 'Time'), 360, 228); label(L('1位との差', 'Gap'), W - 40, 228);
     const uid = lb() ? lb().uid : null;
     const rowY = i => 252 + i * 22;
     const drawRow = (y, rank, r, isMe) => {
@@ -839,16 +883,16 @@ if (typeof document !== 'undefined') (function () {
       ctx.textAlign = 'left';
       ctx.fillStyle = col; ctx.font = 'bold 15px ui-monospace,Menlo,monospace'; ctx.fillText(rank ? String(rank) : '-', 48, y);
       ctx.font = 'bold 14px system-ui,"Hiragino Sans",sans-serif'; ctx.fillStyle = '#ffffff';
-      ctx.fillText((r.name || '???') + (isMe ? '（あなた）' : '') + (r.crashed ? ' ※転倒' : ''), 96, y);
+      ctx.fillText((r.cc ? flag(r.cc) + ' ' : '') + (r.name || '???') + (isMe ? L('（あなた）', ' (you)') : '') + (r.crashed ? L(' ※転倒', ' *crash') : ''), 96, y);
       ctx.textAlign = 'right'; ctx.font = 'bold 15px ui-monospace,Menlo,monospace'; ctx.fillStyle = col;
       ctx.fillText(fmt(r.t), 360, y);
       const top = rk.rows[0];
       ctx.fillStyle = '#9fc3e0'; ctx.font = 'bold 13px ui-monospace,Menlo,monospace';
       ctx.fillText(rank === 1 ? '—' : '+' + (r.t - top.t).toFixed(2), W - 40, y);
     };
-    if (rk.rows === null) centerText('読み込み中…', 330, 16, '#9fc3e0', '700');
+    if (rk.rows === null) centerText(L('読み込み中…', 'Loading…'), 330, 16, '#9fc3e0', '700');
     else if (rk.err) { wrapCenter(rk.err, 330, 14, '#ffffff', W - 100); }
-    else if (!rk.rows.length) centerText('まだ記録がありません。最初の1人になろう！', 330, 14, '#ffffff', '700');
+    else if (!rk.rows.length) centerText(L('まだ記録がありません。最初の1人になろう！', 'No times yet. Be the first!'), 330, 14, '#ffffff', '700');
     else {
       rk.rows.forEach((r, i) => {
         let rank = i + 1;
@@ -860,7 +904,7 @@ if (typeof document !== 'undefined') (function () {
         drawRow(rowY(RK_N) + 4, rk.myRank, Object.assign({}, rk.me), true);
       }
     }
-    if (!playerName && lbOn()) centerText('名前を登録すると、あなたの自己ベストが載ります', 598, 12, '#ffd166', '700');
+    if (!playerName && lbOn()) centerText(L('名前を登録すると、あなたの自己ベストが載ります', 'Set your name to put your best time on the board'), 598, 12, '#ffd166', '700');
     ctx.textAlign = 'left';
   }
   function wrapCenter(text, y, size, color, maxW) {
@@ -917,51 +961,52 @@ if (typeof document !== 'undefined') (function () {
   function shareResult() {
     const d = rec && !newCR ? S.finalT - rec.t : null;
     let text = '🛷 BOBSLED ' + COURSE_DEF.name + '  ' + fmt(S.finalT);
-    if (newCR) text += '\n★ コースレコード更新！';
-    else if (d !== null) text += '\nコースレコード比 ' + fmtD(d);
-    if (S.crashed) text += '（転倒あり）';
-    text += '\nスタート ' + S.jumpT.toFixed(2) + 's / 壁ヒット ' + S.hits + '回\nこのタイム、抜ける？';
+    if (newCR) text += L('\n★ コースレコード更新！', '\n★ NEW COURSE RECORD!');
+    else if (d !== null) text += L('\nコースレコード比 ', '\nvs course record ') + fmtD(d);
+    if (S.crashed) text += L('（転倒あり）', ' (crashed)');
+    text += L('\nスタート ' + S.jumpT.toFixed(2) + 's / 壁ヒット ' + S.hits + '回\nこのタイム、抜ける？', '\nStart ' + S.jumpT.toFixed(2) + 's / wall hits ' + S.hits + '\nCan you beat it?');
     const url = /^https?:/.test(location.href) ? location.href.split('#')[0] : '';
     const done = msg => popup(msg, '#4fc3f7');
     if (navigator.share) { navigator.share({ text, url: url || undefined }).catch(() => {}); return; }
     const all = text + (url ? '\n' + url : '');
-    if (navigator.clipboard) navigator.clipboard.writeText(all).then(() => done('コピーしました'), () => done('コピーできませんでした'));
-    else done('コピーできませんでした');
+    if (navigator.clipboard) navigator.clipboard.writeText(all).then(() => done(L('コピーしました', 'Copied')), () => done(L('コピーできませんでした', 'Copy failed')));
+    else done(L('コピーできませんでした', 'Copy failed'));
   }
   function goTitle() { mode = 'title'; S = newSim(); }
   function buttons() {
-    const L = [];
+    const list = [];
     if (mode === 'title') {
-      L.push({ id: 'start', x: W / 2 - 110, y: 506, w: 220, h: 52, text: '▶ スタート', main: true });
-      L.push({ id: 'rank', x: W / 2 - 150, y: 568, w: 145, h: 38, text: '🏆 ランキング' });
-      L.push({ id: 'profile', x: W / 2 + 5, y: 568, w: 145, h: 38, text: playerName ? '👤 ' + playerName : '👤 名前を登録' });
-      L.push({ id: 'mute', x: W - 92, y: 122, w: 50, h: 36, text: sfx.muted ? '🔇' : '🔊' });
+      list.push({ id: 'start', x: W / 2 - 110, y: 506, w: 220, h: 52, text: L('▶ スタート', '▶ START'), main: true });
+      list.push({ id: 'rank', x: W / 2 - 150, y: 568, w: 145, h: 38, text: L('🏆 ランキング', '🏆 RANKING') });
+      list.push({ id: 'profile', x: W / 2 + 5, y: 568, w: 145, h: 38, text: playerName ? '👤 ' + playerName : L('👤 名前を登録', '👤 SET NAME') });
+      list.push({ id: 'lang', x: 42, y: 122, w: 64, h: 36, text: LANG === 'ja' ? 'EN' : '日本語' });
+      list.push({ id: 'mute', x: W - 92, y: 122, w: 50, h: 36, text: sfx.muted ? '🔇' : '🔊' });
     } else if (mode === 'play' && S.phase === 'push') {
-      L.push({ id: 'jump', x: 12, y: BTN_Y, w: BTN_W, h: BTN_H, text: '↓ 乗り込み', sub: 'ライン直前で' });
-      L.push({ id: 'push', x: W - 12 - BTN_W, y: BTN_Y, w: BTN_W, h: BTN_H, text: 'PUSH', sub: '連打！', main: true });
+      list.push({ id: 'jump', x: 12, y: BTN_Y, w: BTN_W, h: BTN_H, text: L('↓ 乗り込み', '↓ LOAD'), sub: L('ライン直前で', 'just before the line') });
+      list.push({ id: 'push', x: W - 12 - BTN_W, y: BTN_Y, w: BTN_W, h: BTN_H, text: 'PUSH', sub: L('連打！', 'tap fast!'), main: true });
     } else if (mode === 'play' && S.phase === 'ride') {
-      L.push({ id: 'left', x: 12, y: BTN_Y, w: BTN_W, h: BTN_H, text: '◀', steer: -1 });
-      L.push({ id: 'right', x: W - 12 - BTN_W, y: BTN_Y, w: BTN_W, h: BTN_H, text: '▶', steer: 1 });
+      list.push({ id: 'left', x: 12, y: BTN_Y, w: BTN_W, h: BTN_H, text: '◀', steer: -1 });
+      list.push({ id: 'right', x: W - 12 - BTN_W, y: BTN_Y, w: BTN_W, h: BTN_H, text: '▶', steer: 1 });
     } else if (mode === 'play' && (S.phase === 'dnf' || (S.phase === 'finish' && S.v < 60))) {
       const y = S.phase === 'dnf' ? 428 : 496;
       if (S.phase === 'finish') {
-        L.push({ id: 'retry', x: 44, y, w: 92, h: 48, text: 'リトライ', main: true });
-        L.push({ id: 'rank', x: 144, y, w: 92, h: 48, text: 'ランキング' });
-        L.push({ id: 'share', x: 244, y, w: 92, h: 48, text: 'シェア' });
-        L.push({ id: 'title', x: 344, y, w: 92, h: 48, text: 'コース選択' });
+        list.push({ id: 'retry', x: 44, y, w: 92, h: 48, text: L('リトライ', 'RETRY'), main: true });
+        list.push({ id: 'rank', x: 144, y, w: 92, h: 48, text: L('ランキング', 'RANKING') });
+        list.push({ id: 'share', x: 244, y, w: 92, h: 48, text: L('シェア', 'SHARE') });
+        list.push({ id: 'title', x: 344, y, w: 92, h: 48, text: L('コース選択', 'COURSES') });
       } else {
-        L.push({ id: 'retry', x: W / 2 - 165, y, w: 155, h: 48, text: 'リトライ', main: true });
-        L.push({ id: 'title', x: W / 2 + 10, y, w: 155, h: 48, text: 'コース選択' });
+        list.push({ id: 'retry', x: W / 2 - 165, y, w: 155, h: 48, text: L('リトライ', 'RETRY'), main: true });
+        list.push({ id: 'title', x: W / 2 + 10, y, w: 155, h: 48, text: L('コース選択', 'COURSES') });
       }
     } else if (mode === 'ranking') {
-      L.push({ id: 'rkPrev', x: 36, y: 92, w: 50, h: 40, text: '◀' });
-      L.push({ id: 'rkNext', x: W - 86, y: 92, w: 50, h: 40, text: '▶' });
-      L.push({ id: 'tabAll', x: 40, y: 144, w: 196, h: 40, text: '全体', main: rk.tab === 'all' });
-      L.push({ id: 'tabGroup', x: 244, y: 144, w: 196, h: 40, text: 'グループ', main: rk.tab === 'group' });
-      L.push({ id: 'back', x: 40, y: 616, w: 196, h: 48, text: '戻る' });
-      L.push({ id: 'profile', x: 244, y: 616, w: 196, h: 48, text: '名前・グループ' });
+      list.push({ id: 'rkPrev', x: 36, y: 92, w: 50, h: 40, text: '◀' });
+      list.push({ id: 'rkNext', x: W - 86, y: 92, w: 50, h: 40, text: '▶' });
+      list.push({ id: 'tabAll', x: 40, y: 144, w: 196, h: 40, text: L('全体', 'WORLD'), main: rk.tab === 'all' });
+      list.push({ id: 'tabGroup', x: 244, y: 144, w: 196, h: 40, text: L('グループ', 'GROUP'), main: rk.tab === 'group' });
+      list.push({ id: 'back', x: 40, y: 616, w: 196, h: 48, text: L('戻る', 'BACK') });
+      list.push({ id: 'profile', x: 244, y: 616, w: 196, h: 48, text: L('名前・グループ', 'NAME & GROUP') });
     }
-    return L;
+    return list;
   }
   const hitBtn = p => buttons().find(b => p.x >= b.x && p.x <= b.x + b.w && p.y >= b.y && p.y <= b.y + b.h);
   function pressBtn(b) {
@@ -972,6 +1017,7 @@ if (typeof document !== 'undefined') (function () {
     else if (b.id === 'mute') sfx.toggle();
     else if (b.id === 'share') shareResult();
     else if (b.id === 'rank') openRanking();
+    else if (b.id === 'lang') { LANG = LANG === 'ja' ? 'en' : 'ja'; LS('bobsled_lang', LANG); }
     else if (b.id === 'profile') openProfile();
     else if (b.id === 'back') goTitle();
     else if (b.id === 'rkPrev' || b.id === 'rkNext') { selectCourse(COURSE_IDX + (b.id === 'rkPrev' ? -1 : 1)); loadRanking(); }
@@ -1042,7 +1088,7 @@ if (typeof document !== 'undefined') (function () {
     for (const e of ev) {
       if (e.type === 'jump') {
         const col = { PERFECT: '#ffd166', GOOD: '#7ee081', EARLY: '#9fc3e0', LATE: '#ff6b6b' }[e.rating];
-        popup(e.rating, col, 'スタート ' + Math.round(S.jumpV * KMH) + ' km/h');
+        popup(e.rating, col, L('スタート ', 'START ') + Math.round(S.jumpV * KMH) + ' km/h');
         if (e.rating === 'PERFECT') sfx.chime(3); else if (e.rating === 'GOOD') sfx.chime(2);
       } else if (e.type === 'board') {
         boardTime[e.i] = clock;
@@ -1056,11 +1102,11 @@ if (typeof document !== 'undefined') (function () {
         const d = diffAt(e.i, rec);
         if (d !== null) sfx.chime(d <= 0 ? 2 : 1);
       } else if (e.type === 'dnf') {
-        popup('停止…', '#ff6b6b');
+        popup(L('停止…', 'Stopped…'), '#ff6b6b');
         sfx.fail();
       } else if (e.type === 'crash') {
         shake = 22;
-        popup('転倒！', '#ff6b6b');
+        popup(L('転倒！', 'CRASH!'), '#ff6b6b');
         sfx.crash();
       } else if (e.type === 'curve') {
         if (e.q > 0.8) { popup('EXCELLENT LINE', '#ffd166'); sfx.chime(4); }
@@ -1084,7 +1130,7 @@ if (typeof document !== 'undefined') (function () {
       const prevN = Math.ceil(countdown);
       countdown -= dt;
       if (countdown > 0 && Math.ceil(countdown) < prevN) sfx.beep(false);
-      if (countdown <= 0) { mode = 'play'; popup('GO!', '#4fc3f7', '連打！'); sfx.beep(true); }
+      if (countdown <= 0) { mode = 'play'; popup('GO!', '#4fc3f7', L('連打！', 'PUSH!')); sfx.beep(true); }
     }
     if (mode === 'play') {
       const steps = 4, h = dt / steps, ev = [];
@@ -1605,7 +1651,7 @@ if (typeof document !== 'undefined') (function () {
     const m = Math.floor(t / 60);
     return m + ':' + (t - m * 60).toFixed(2).padStart(5, '0');
   }
-  const dirName = a => (a > 0 ? '右 ' : '左 ') + Math.abs(a) + '°';
+  const dirName = a => (a > 0 ? L('右 ', 'Right ') : L('左 ', 'Left ')) + Math.abs(a) + '°';
 
   // ミニマップ（真上から）
   let MAP;
@@ -1692,8 +1738,8 @@ if (typeof document !== 'undefined') (function () {
       ctx.fillText(fmtD(d), 259, 106);
       ctx.textAlign = 'left';
     }
-    let sub = rec ? 'コースレコード' + (rec.mine ? '(あなた)' : '') + ' ' + (rec.splits[i] !== undefined ? rec.splits[i].toFixed(2) : '--') : 'コースレコードなし';
-    if (dp !== null && !(rec && rec.mine)) sub += '   自己ベスト比 ' + fmtD(dp);
+    let sub = rec ? L('コースレコード', 'Course record') + (rec.mine ? L('(あなた)', ' (you)') : '') + ' ' + (rec.splits[i] !== undefined ? rec.splits[i].toFixed(2) : '--') : L('コースレコードなし', 'No course record');
+    if (dp !== null && !(rec && rec.mine)) sub += L('   自己ベスト比 ', '   vs PB ') + fmtD(dp);
     label(sub, 24, 123, '#9fc3e0', 10.5);
   }
   function drawHUD() {
@@ -1718,16 +1764,16 @@ if (typeof document !== 'undefined') (function () {
         panel(W / 2 - 84, 140, 168, 46);
         if (S.s >= cu.s0) {
           label('CURVE ' + cu.num + ' / ' + CURVES.length, W / 2, 160, '#ffffff', 15);
-          label(dirName(cu.a) + (cu.name ? '  ' + cu.name : ''), W / 2, 178, '#ffd166', 12);
+          label(dirName(cu.a) + (cu.name ? '  ' + curveName(cu.name) : ''), W / 2, 178, '#ffd166', 12);
         } else {
           label('NEXT  CURVE ' + cu.num + '  ' + Math.round((cu.s0 - S.s) / PXM) + 'm', W / 2, 160, '#9fc3e0', 12);
-          label(dirName(cu.a) + (cu.name ? '  ' + cu.name : ''), W / 2, 178, '#ffffff', 13);
+          label(dirName(cu.a) + (cu.name ? '  ' + curveName(cu.name) : ''), W / 2, 178, '#ffffff', 13);
         }
       } else if (S.phase === 'ride') {
         panel(W / 2 - 84, 140, 168, 32);
         label('FINISH  ' + Math.max(0, Math.round((S_FIN - S.s) / PXM)) + 'm', W / 2, 161, '#ffd166', 14);
       }
-      if (S.s < S_FIN && courseAt(S.s).gr < -0.005) label('▲ 上り坂', W / 2, S.phase === 'crash' ? 248 : 204, '#ff9f43', 14);
+      if (S.s < S_FIN && courseAt(S.s).gr < -0.005) label(L('▲ 上り坂', '▲ UPHILL'), W / 2, S.phase === 'crash' ? 248 : 204, '#ff9f43', 14);
       ctx.textAlign = 'left';
     }
 
@@ -1749,7 +1795,7 @@ if (typeof document !== 'undefined') (function () {
     if (S.phase !== 'push') drawHeightGauge();
     if (S.phase === 'ride' && S.danger > 0.05 && Math.floor(clock / 120) % 2) {
       ctx.globalAlpha = clamp(S.danger * 1.5, 0.4, 1);
-      centerText('⚠ 転倒注意！ 下げろ！', H * 0.62, 22, '#ff6b6b', '900', true);
+      centerText(L('⚠ 転倒注意！ 下げろ！', '⚠ CRASH RISK! GET DOWN!'), H * 0.62, 22, '#ff6b6b', '900', true);
       ctx.globalAlpha = 1;
     }
     if (S.phase === 'push' && mode === 'play') drawPushUI();
@@ -1761,19 +1807,19 @@ if (typeof document !== 'undefined') (function () {
     panel(px, py, pw, 82);
     ctx.textAlign = 'left';
     label('PUSH POWER', px + 14, py + 20);
-    label(mashTimes.length + ' 回/秒', px + pw - 70, py + 20, '#ffffff');
+    label(mashTimes.length + L(' 回/秒', ' /sec'), px + pw - 70, py + 20, '#ffffff');
     ctx.fillStyle = 'rgba(255,255,255,0.15)';
     ctx.fillRect(px + 14, py + 28, pw - 28, 12);
     const pv = clamp(S.v / PUSH_MAX, 0, 1);
     ctx.fillStyle = pv > 0.85 ? '#ffd166' : '#4fc3f7';
     ctx.fillRect(px + 14, py + 28, (pw - 28) * pv, 12);
-    label('乗り込みラインまで  ' + Math.max(0, (JUMP_S - S.s) / PXM).toFixed(1) + 'm', px + 14, py + 58);
+    label(L('乗り込みラインまで  ', 'To loading line  ') + Math.max(0, (JUMP_S - S.s) / PXM).toFixed(1) + 'm', px + 14, py + 58);
     const bw = pw - 28, bx = px + 14, by = py + 64;
     ctx.fillStyle = 'rgba(255,255,255,0.15)'; ctx.fillRect(bx, by, bw, 8);
     ctx.fillStyle = 'rgba(255,209,102,0.85)'; ctx.fillRect(bx + bw * (1 - GOOD_WIN / JUMP_S), by, bw * GOOD_WIN / JUMP_S, 8);
     ctx.fillStyle = 'rgba(126,224,129,0.95)'; ctx.fillRect(bx + bw * (1 - PERFECT_WIN / JUMP_S), by, bw * PERFECT_WIN / JUMP_S, 8);
     ctx.fillStyle = '#ffffff'; ctx.fillRect(bx + bw * clamp(S.s / JUMP_S, 0, 1) - 2, by - 4, 4, 16);
-    centerText('SPACE / PUSH 連打！', py - 10, 18, '#ffffff', '900', true);
+    centerText(L('SPACE / PUSH 連打！', 'TAP SPACE / PUSH!'), py - 10, 18, '#ffffff', '900', true);
   }
 
   // 乗員パネル：横から見たそりに、前から順に4人が乗り込む
@@ -1844,13 +1890,13 @@ if (typeof document !== 'undefined') (function () {
       // コース選択
       ctx.fillStyle = 'rgba(79,195,247,0.12)'; roundRect(46, SEL_Y, W - 92, SEL_H, 10); ctx.fill();
       centerText(COURSE_DEF.name, SEL_Y + 26, 22, '#ffd166', '900');
-      centerText(COURSE_DEF.sub + '  ' + CURVES.length + 'カーブ  ' + Math.round(S_FIN / PXM) + 'm', SEL_Y + 48, 12.5, '#ffffff', '600');
+      centerText(L(COURSE_DEF.sub, COURSE_DEF.subEn) + '  ' + CURVES.length + L('カーブ  ', ' curves  ') + Math.round(S_FIN / PXM) + 'm', SEL_Y + 48, 12.5, '#ffffff', '600');
       const pulse = 0.6 + 0.4 * Math.sin(performance.now() / 250);
       ctx.globalAlpha = pulse;
       ctx.textAlign = 'center'; ctx.fillStyle = '#4fc3f7'; ctx.font = '900 26px system-ui,sans-serif'; ctx.fillText('◀', 70, SEL_Y + 40); ctx.fillText('▶', W - 70, SEL_Y + 40);
       ctx.globalAlpha = 1;
       // 操作はこの3つだけ
-      const keysHelp = [['SPACE 連打', 'プッシュ'], ['↓', '乗り込み'], ['← →', '操縦']];
+      const keysHelp = [[L('SPACE 連打', 'Tap SPACE'), L('プッシュ', 'Push')], ['↓', L('乗り込み', 'Load in')], ['← →', L('操縦', 'Steer')]];
       keysHelp.forEach(([k, t], i) => {
         const y = 300 + i * 46;
         ctx.fillStyle = 'rgba(255,255,255,0.12)'; roundRect(96, y - 25, 150, 36, 8); ctx.fill();
@@ -1859,9 +1905,9 @@ if (typeof document !== 'undefined') (function () {
         ctx.textAlign = 'left'; ctx.fillStyle = '#ffffff'; ctx.font = '800 19px system-ui,"Hiragino Sans",sans-serif';
         ctx.fillText(t, 268, y);
       });
-      centerText('スマホは画面のボタンで', 438, 12, '#9fc3e0', '600');
-      centerText('自己ベスト ' + fmt(best) + '　　コースレコード ' + (rec ? fmt(rec.t) + (rec.mine ? '（あなた）' : rec.name ? '（' + rec.name + '）' : '') : '--'), 490, 14, '#4fc3f7');
-      centerText('SPACE でスタート', 626, 11, '#9fc3e0', '600');
+      centerText(L('スマホは画面のボタンで', 'On phones, use the on-screen buttons'), 438, 12, '#9fc3e0', '600');
+      centerText(L('自己ベスト ', 'PB ') + fmt(best) + L('　　コースレコード ', '    Record ') + (rec ? fmt(rec.t) + (rec.mine ? L('（あなた）', ' (you)') : rec.name ? ' (' + (rec.cc ? flag(rec.cc) + ' ' : '') + rec.name + ')' : '') : '--'), 490, 14, '#4fc3f7');
+      centerText(L('SPACE でスタート', 'Press SPACE to start'), 626, 11, '#9fc3e0', '600');
     }
     if (mode === 'ranking') drawRanking();
     if (mode === 'countdown') {
@@ -1870,30 +1916,31 @@ if (typeof document !== 'undefined') (function () {
       ctx.globalAlpha = clamp(f * 1.5, 0, 1);
       centerText(String(n), H * 0.36, 120 + (1 - f) * 30, '#e63946', '900', true);
       ctx.globalAlpha = 1;
-      centerText('GOで SPACE 連打！', H * 0.46, 18, '#ffffff', '800', true);
+      centerText(L('GOで SPACE 連打！', 'On GO, tap SPACE fast!'), H * 0.46, 18, '#ffffff', '800', true);
     }
     if (mode === 'play' && S.phase === 'crash' && S.crashT < 4.5) {
       const a = clamp(S.crashT / 0.3, 0, 1) * clamp((4.5 - S.crashT) / 0.6, 0, 1);
       ctx.globalAlpha = a;
       panel(50, 250, W - 100, 92);
-      centerText('転倒！', 290, 30, '#ff6b6b', '900');
-      centerText('横倒しのままゴールを目指せ（操縦不能）', 322, 14, '#ffffff', '700');
+      centerText(L('転倒！', 'CRASH!'), 290, 30, '#ff6b6b', '900');
+      centerText(L('横倒しのままゴールを目指せ（操縦不能）', 'Slide on your side to the finish (no steering)'), 322, 14, '#ffffff', '700');
       ctx.globalAlpha = 1;
     }
     if (mode === 'play' && S.phase === 'crash' && S.crashT >= 4.5) {
       ctx.textAlign = 'center';
       panel(W / 2 - 90, 196, 180, 30);
-      label('転倒中 … ゴールまで ' + Math.max(0, Math.round((S_FIN - S.s) / PXM)) + 'm', W / 2, 216, '#ff6b6b', 13);
+      label(L('転倒中 … ゴールまで ', 'Crashed … to finish ') + Math.max(0, Math.round((S_FIN - S.s) / PXM)) + 'm', W / 2, 216, '#ff6b6b', 13);
       ctx.textAlign = 'left';
     }
     if (mode === 'play' && S.phase === 'dnf') {
       ctx.fillStyle = 'rgba(80,0,10,0.25)'; ctx.fillRect(0, 0, W, H);
       panel(40, 200, W - 80, 290);
-      centerText('停止', 262, 44, '#ff6b6b', '900');
+      centerText(L('停止', 'STOPPED'), 262, 44, '#ff6b6b', '900');
       centerText('DNF', 306, 30, '#ffffff', '900');
-      centerText('カーブ ' + S.crashCurve + ' で転倒 → ゴールまで残り ' + Math.max(1, Math.round((S_FIN - S.s) / PXM)) + 'm で停止', 346, 14, '#ffffff', '700');
-      centerText('転倒しても、ゴールを切れば完走扱い', 378, 13, '#9fc3e0', '600');
-      centerText('SPACE：リトライ  /  T：コース選択', 412, 11, '#9fc3e0', '600');
+      const left = Math.max(1, Math.round((S_FIN - S.s) / PXM));
+      centerText(L('カーブ ' + S.crashCurve + ' で転倒 → ゴールまで残り ' + left + 'm で停止', 'Crashed in curve ' + S.crashCurve + ' → stopped ' + left + 'm before the finish'), 346, 14, '#ffffff', '700');
+      centerText(L('転倒しても、ゴールを切れば完走扱い', 'A crashed sled still counts if it crosses the line'), 378, 13, '#9fc3e0', '600');
+      centerText(L('SPACE：リトライ  /  T：コース選択', 'SPACE: retry  /  T: courses'), 412, 11, '#9fc3e0', '600');
     }
     if (mode === 'play' && S.phase === 'finish') {
       const a = clamp((1300 - S.v) / 500, 0, 1);
@@ -1905,12 +1952,12 @@ if (typeof document !== 'undefined') (function () {
         ctx.globalAlpha = a * (0.6 + 0.4 * Math.sin(performance.now() / 150));
         centerText('★ NEW COURSE RECORD ★', 300, 22, '#ffd166', '900');
         ctx.globalAlpha = a;
-        if (prevRec) centerText('これまでのコースレコード ' + fmt(prevRec.t) + '  (' + fmtD(S.finalT - prevRec.t) + ')', 324, 13, '#9fc3e0', '700');
+        if (prevRec) centerText(L('これまでのコースレコード ', 'Previous record ') + fmt(prevRec.t) + '  (' + fmtD(S.finalT - prevRec.t) + ')', 324, 13, '#9fc3e0', '700');
       } else {
         const d = rec ? S.finalT - rec.t : null;
-        if (d !== null) centerText('コースレコード ' + fmt(rec.t) + (rec.name && !rec.mine ? '（' + rec.name + '）' : '') + '　' + fmtD(d), 300, 17, dCol(d), '800');
-        if (newRecord) centerText('自己ベスト更新！' + (prevPb ? '  (' + fmtD(S.finalT - prevPb.t) + ')' : ''), 324, 14, '#ffd166', '800');
-        else if (pb) centerText('自己ベスト ' + fmt(pb.t) + '  (' + fmtD(S.finalT - pb.t) + ')', 324, 13, '#9fc3e0', '700');
+        if (d !== null) centerText(L('コースレコード ', 'Record ') + fmt(rec.t) + (rec.name && !rec.mine ? ' (' + rec.name + ')' : '') + '  ' + fmtD(d), 300, 17, dCol(d), '800');
+        if (newRecord) centerText(L('自己ベスト更新！', 'NEW PERSONAL BEST!') + (prevPb ? '  (' + fmtD(S.finalT - prevPb.t) + ')' : ''), 324, 14, '#ffd166', '800');
+        else if (pb) centerText(L('自己ベスト ', 'PB ') + fmt(pb.t) + '  (' + fmtD(S.finalT - pb.t) + ')', 324, 13, '#9fc3e0', '700');
       }
       // 区間ごとのコースレコード比
       const ref = newCR ? prevRec : rec;
@@ -1926,10 +1973,10 @@ if (typeof document !== 'undefined') (function () {
       }
       const lineAcc = S.sumQT > 0 ? Math.round(S.sumQ / S.sumQT * 100) : 0;
       const rows = [
-        ['スタート', S.jumpT.toFixed(2) + 's  ' + Math.round(S.jumpV * KMH) + 'km/h  ' + S.jumpRating],
-        ['ライン精度', lineAcc + ' %'],
-        ['壁ヒット', S.hits + ' 回'],
-        ['転倒', S.crashed ? 'あり（カーブ ' + S.crashCurve + '）' : 'なし'],
+        [L('スタート', 'Start'), S.jumpT.toFixed(2) + 's  ' + Math.round(S.jumpV * KMH) + 'km/h  ' + S.jumpRating],
+        [L('ライン精度', 'Line accuracy'), lineAcc + ' %'],
+        [L('壁ヒット', 'Wall hits'), S.hits + L(' 回', '')],
+        [L('転倒', 'Crash'), S.crashed ? L('あり（カーブ ' + S.crashCurve + '）', 'yes (curve ' + S.crashCurve + ')') : L('なし', 'no')],
       ];
       rows.forEach(([k, v], i) => {
         const yy = 394 + i * 23;
@@ -1939,7 +1986,7 @@ if (typeof document !== 'undefined') (function () {
         ctx.textAlign = 'right';
         ctx.fillStyle = '#ffffff'; ctx.fillText(v, W - 80, yy);
       });
-      if (S.v < 60) centerText(lbMsg || 'SPACE：リトライ  /  L：ランキング  /  T：コース選択', 486, lbMsg ? 13 : 11, lbMsg ? '#ffd166' : '#9fc3e0', lbMsg ? '800' : '600');
+      if (S.v < 60) centerText(lbMsg || L('SPACE：リトライ  /  L：ランキング  /  T：コース選択', 'SPACE: retry  /  L: ranking  /  T: courses'), 486, lbMsg ? 13 : 11, lbMsg ? '#ffd166' : '#9fc3e0', lbMsg ? '800' : '600');
       ctx.globalAlpha = 1;
     }
   }
