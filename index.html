@@ -615,7 +615,7 @@ if (typeof document !== 'undefined') (function () {
   const loadBestOf = def => loadJSON(def.best);
   const defaultRec = def => def.rec ? { t: def.rec[def.rec.length - 1], splits: def.rec.slice(0, -1), mine: false, name: '' } : null;
   const loadRecOf = def => loadJSON(crKey(def)) || defaultRec(def);
-  let pb = null, rec = null, prevPb = null, prevRec = null, newCR = false;
+  let pb = null, rec = null, prevPb = null, prevRec = null, newCR = false, perImproved = [];
   let best = null;   // 表示用：自己ベストのタイム
   let lastSplit = -1, lastSplitClock = 0;
 
@@ -649,7 +649,7 @@ if (typeof document !== 'undefined') (function () {
     sfx.beep(false);
     popups = [];
     mashQueue = 0; jumpQueued = false; mashTimes = [];
-    newRecord = false; newCR = false; lastSplit = -1; lbMsg = '';
+    newRecord = false; newCR = false; lastSplit = -1; lbMsg = ''; perImproved = [];
     camEye = 66; camSide = -34; camBack = -30;
     boardTime = [-1, -1, -1, -1];
   }
@@ -766,11 +766,42 @@ if (typeof document !== 'undefined') (function () {
   let playerName = LS('bobsled_name'), playerGroup = LS('bobsled_group'), playerCC = LS('bobsled_cc') || detectCC();
   const lb = () => window.LB || null;
   const lbOn = () => !!(window.FIREBASE_CONFIG || window.LB);
-  const boardId = (def, g) => def.id + '__' + (g ? 'g_' + g : 'all');
+  // 期間ごとのランキング：今日・今週・今月・今年（日本時間で区切る）と全期間
+  const PERIODS = ['d', 'w', 'm', 'y', 'all'];
+  const PER_NAME = { d: ['今日', 'Today'], w: ['今週', 'This week'], m: ['今月', 'This month'], y: ['今年', 'This year'], all: ['全期間', 'All time'] };
+  const perName = k => L(PER_NAME[k][0], PER_NAME[k][1]);
+  function periodKeys(date = new Date()) {
+    const j = new Date(date.getTime() + 9 * 3600e3);       // 日本時間
+    const y = j.getUTCFullYear(), m = j.getUTCMonth() + 1, d = j.getUTCDate();
+    const p2 = n => String(n).padStart(2, '0');
+    const t = new Date(Date.UTC(y, m - 1, d));               // ISO 週（月曜はじまり）
+    t.setUTCDate(t.getUTCDate() + 3 - (t.getUTCDay() + 6) % 7);
+    const wy = t.getUTCFullYear(), wk = Math.ceil(((t - Date.UTC(wy, 0, 1)) / 864e5 + 1) / 7);
+    return { d: `d_${y}-${p2(m)}-${p2(d)}`, w: `w_${wy}-W${p2(wk)}`, m: `m_${y}-${p2(m)}`, y: `y_${y}`, all: '' };
+  }
+  const boardId = (def, g, perKey) => def.id + '__' + (g ? 'g_' + g : 'all') + (perKey ? '__' + perKey : '');
+  // 自分の期間ベスト（端末に保存）
+  const ppKey = def => 'bobsled_pp_' + def.id;
+  const loadPP = def => { try { return JSON.parse(localStorage.getItem(ppKey(def))) || {}; } catch (e) { return {}; } };
+  function myPeriodBest(def, per) {
+    if (per === 'all') return loadBestOf(def);
+    const pp = loadPP(def)[per], k = periodKeys()[per];
+    return pp && pp.k === k ? pp : null;
+  }
+  // ゴールしたとき：期間ごとに更新したかを記録し、更新した期間を返す
+  function updatePeriods(def, run) {
+    const pp = loadPP(def), keysNow = periodKeys(), improved = [];
+    for (const per of ['d', 'w', 'm', 'y']) {
+      const cur = pp[per];
+      if (!cur || cur.k !== keysNow[per] || run.t < cur.t) { pp[per] = Object.assign({ k: keysNow[per] }, run); improved.push(per); }
+    }
+    saveJSON(ppKey(def), pp);
+    return improved;
+  }
   let lbMsg = '', pendingRun = null;
   const NG = ['死ね', 'しね', '殺す', 'ころす', 'ちんこ', 'ちんぽ', 'まんこ', 'うんこ', 'fuck', 'shit', 'bitch', 'sex', 'nigg', 'kill'];
   const normName = v => v.normalize('NFKC').replace(/[\u0000-\u001f\/]/g, '').trim().slice(0, 12);
-  const normGroup = v => v.normalize('NFKC').toLowerCase().replace(/[\u0000-\u001f\/\s]/g, '').slice(0, 20);
+  const normGroup = v => v.normalize('NFKC').toLowerCase().replace(/[\u0000-\u001f\/\s_]/g, '').slice(0, 20);
   const isNG = v => { const x = v.normalize('NFKC').toLowerCase().replace(/\s/g, ''); return NG.some(w => x.includes(w)); };
   // コースレコード＝全体ランキング1位（初期記録より遅ければ初期記録）
   async function refreshRec(def) {
@@ -784,21 +815,33 @@ if (typeof document !== 'undefined') (function () {
       if (def === COURSE_DEF && !racing) rec = r;
     } catch (e) {}
   }
-  async function submitRun(def, run, visible) {
+  // pers：送る期間（'all' は全期間）。省略時は全部
+  async function submitRun(def, run, visible, pers = PERIODS) {
     if (!lb()) { if (visible) lbMsg = window.LB_ERROR ? L('ランキングに接続できません', 'Could not connect to the ranking') : ''; return; }
     if (!playerName) { pendingRun = { def, run }; if (visible) openProfile(); return; }
     const data = { name: playerName, cc: playerCC, t: Math.round(run.t * 1000) / 1000, splits: run.splits.map(x => Math.round(x * 1000) / 1000), crashed: !!run.crashed };
     if (data.splits.length !== 5) return;
     try {
       if (visible) lbMsg = L('ランキングに登録中…', 'Submitting to the ranking…');
-      await lb().submit(boardId(def, ''), data);
-      if (playerGroup) await lb().submit(boardId(def, playerGroup), data);
+      const keysNow = periodKeys(), jobs = [];
+      for (const per of pers) {
+        jobs.push(lb().submit(boardId(def, '', keysNow[per]), data));
+        if (playerGroup) jobs.push(lb().submit(boardId(def, playerGroup, keysNow[per]), data));
+      }
+      await Promise.all(jobs);
       if (visible) lbMsg = L('ランキングに登録しました', 'Submitted to the ranking');
       await refreshRec(def);
     } catch (e) { console.warn(e); if (visible) lbMsg = L('ランキングに登録できませんでした', 'Could not submit to the ranking'); }
   }
   // 端末に残っている自己ベストを、名前・グループの設定に合わせて送り直す
-  function syncAll() { if (!lb() || !playerName) return; for (const def of COURSES) { const r = loadBestOf(def); if (r) submitRun(def, r, false); } }
+  function syncAll() {
+    if (!lb() || !playerName) return;
+    for (const def of COURSES) {
+      const r = loadBestOf(def);
+      if (r) submitRun(def, r, false, ['all']);
+      for (const per of ['d', 'w', 'm', 'y']) { const b = myPeriodBest(def, per); if (b) submitRun(def, b, false, [per]); }
+    }
+  }
   addEventListener('lb-ready', () => {
     COURSES.forEach(d => refreshRec(d));
     syncAll();
@@ -841,8 +884,8 @@ if (typeof document !== 'undefined') (function () {
   });
 
   // ---- ランキング画面 ----
-  const RK_N = 15;
-  const rk = { tab: 'all', rows: null, me: null, myRank: null, err: '', token: 0 };
+  const RK_N = 12;
+  const rk = { tab: 'all', per: 'd', rows: null, me: null, myRank: null, err: '', token: 0 };
   function openRanking() { mode = 'ranking'; keys.left = keys.right = false; loadRanking(); }
   async function loadRanking() {
     const tok = ++rk.token;
@@ -850,7 +893,7 @@ if (typeof document !== 'undefined') (function () {
     if (!lbOn()) { rk.err = L('ランキングはまだ準備中です', 'The ranking is not available yet'); rk.rows = []; return; }
     if (!lb()) { rk.err = window.LB_ERROR ? L('ランキングに接続できません', 'Could not connect to the ranking') : ''; if (window.LB_ERROR) rk.rows = []; return; }
     if (rk.tab === 'group' && !playerGroup) { rk.err = L('「名前・グループ」で合言葉を入れると、仲間だけのランキングになります', 'Enter a group code in "Name & Group" to get a ranking just for your friends'); rk.rows = []; return; }
-    const board = boardId(COURSE_DEF, rk.tab === 'group' ? playerGroup : '');
+    const board = boardId(COURSE_DEF, rk.tab === 'group' ? playerGroup : '', periodKeys()[rk.per]);
     try {
       const [rows, me] = await Promise.all([lb().top(board, RK_N), lb().mine(board)]);
       if (tok !== rk.token) return;
@@ -866,17 +909,20 @@ if (typeof document !== 'undefined') (function () {
     panel(20, 30, W - 40, 670);
     centerText('🏆 RANKING', 72, 30, '#ffd166', '900');
     centerText(COURSE_DEF.name, 116, 20, '#ffffff', '900');
-    if (rk.tab === 'group' && playerGroup) centerText(L('グループ「' + playerGroup + '」', 'Group "' + playerGroup + '"'), 204, 13, '#4fc3f7', '700');
-    else {
+    // 期間の説明（全期間ならコースレコードの説明）
+    const grp = rk.tab === 'group' && playerGroup ? L('グループ「' + playerGroup + '」 ', 'Group "' + playerGroup + '" ') : '';
+    if (rk.per === 'all' && !grp) {
       const d = defaultRec(COURSE_DEF), top = rk.rows && rk.rows[0];
-      if (d && !(top && top.t < d.t)) centerText(L('初期コースレコード ' + fmt(d.t) + '（これを切ると1位がコースレコード）', 'Starting record ' + fmt(d.t) + ' — beat it and No.1 becomes the record'), 204, 11.5, '#9fc3e0', '600');
-      else centerText(L('1位のタイムがコースレコードになります', 'No.1 time is the course record'), 204, 11.5, '#9fc3e0', '600');
-    }
+      if (d && !(top && top.t < d.t)) centerText(L('初期コースレコード ' + fmt(d.t) + '（これを切ると1位がコースレコード）', 'Starting record ' + fmt(d.t) + ' — beat it and No.1 becomes the record'), 238, 11.5, '#9fc3e0', '600');
+      else centerText(L('全期間の1位がコースレコードです', 'All-time No.1 is the course record'), 238, 11.5, '#9fc3e0', '600');
+    } else centerText(grp + (rk.per === 'all' ? '' : L(perName(rk.per) + 'のランキング（日本時間で切り替え）', perName(rk.per) + ' (resets on Japan time)')), 238, 11.5, grp ? '#4fc3f7' : '#9fc3e0', '700');
+    const mb = myPeriodBest(COURSE_DEF, rk.per);
+    centerText(L('あなたの' + perName(rk.per) + 'のベスト  ', 'Your best ' + perName(rk.per).toLowerCase() + '  ') + (mb ? fmt(mb.t) : '--:--.--'), 260, 14, '#ffd166', '800');
     ctx.textAlign = 'left';
-    label(L('順位', 'Rank'), 44, 228); label(L('名前', 'Name'), 96, 228);
-    ctx.textAlign = 'right'; label(L('タイム', 'Time'), 360, 228); label(L('1位との差', 'Gap'), W - 40, 228);
+    label(L('順位', 'Rank'), 44, 284); label(L('名前', 'Name'), 96, 284);
+    ctx.textAlign = 'right'; label(L('タイム', 'Time'), 360, 284); label(L('1位との差', 'Gap'), W - 40, 284);
     const uid = lb() ? lb().uid : null;
-    const rowY = i => 252 + i * 22;
+    const rowY = i => 306 + i * 21;
     const drawRow = (y, rank, r, isMe) => {
       if (isMe) { ctx.fillStyle = 'rgba(79,195,247,0.22)'; roundRect(32, y - 16, W - 64, 22, 6); ctx.fill(); }
       const col = rank === 1 ? '#ffd166' : rank === 2 ? '#dfe7ef' : rank === 3 ? '#e0a370' : '#ffffff';
@@ -890,9 +936,9 @@ if (typeof document !== 'undefined') (function () {
       ctx.fillStyle = '#9fc3e0'; ctx.font = 'bold 13px ui-monospace,Menlo,monospace';
       ctx.fillText(rank === 1 ? '—' : '+' + (r.t - top.t).toFixed(2), W - 40, y);
     };
-    if (rk.rows === null) centerText(L('読み込み中…', 'Loading…'), 330, 16, '#9fc3e0', '700');
-    else if (rk.err) { wrapCenter(rk.err, 330, 14, '#ffffff', W - 100); }
-    else if (!rk.rows.length) centerText(L('まだ記録がありません。最初の1人になろう！', 'No times yet. Be the first!'), 330, 14, '#ffffff', '700');
+    if (rk.rows === null) centerText(L('読み込み中…', 'Loading…'), 380, 16, '#9fc3e0', '700');
+    else if (rk.err) { wrapCenter(rk.err, 380, 14, '#ffffff', W - 100); }
+    else if (!rk.rows.length) centerText(L('まだ記録がありません。最初の1人になろう！', 'No times yet. Be the first!'), 380, 14, '#ffffff', '700');
     else {
       rk.rows.forEach((r, i) => {
         let rank = i + 1;
@@ -900,7 +946,7 @@ if (typeof document !== 'undefined') (function () {
         drawRow(rowY(i), rank, r, r.uid === uid);
       });
       if (rk.me && rk.myRank) {
-        ctx.fillStyle = 'rgba(255,255,255,0.25)'; ctx.fillRect(40, rowY(RK_N) - 22, W - 80, 1);
+        ctx.fillStyle = 'rgba(255,255,255,0.25)'; ctx.fillRect(40, rowY(RK_N) - 18, W - 80, 1);
         drawRow(rowY(RK_N) + 4, rk.myRank, Object.assign({}, rk.me), true);
       }
     }
@@ -927,6 +973,7 @@ if (typeof document !== 'undefined') (function () {
       if (k === 'ArrowLeft' || k === 'ArrowRight') { e.preventDefault(); selectCourse(COURSE_IDX + (k === 'ArrowLeft' ? -1 : 1)); loadRanking(); }
       if (k === 'Escape' || k === 'Backspace' || k === 't' || k === 'T') goTitle();
       if (k === 'Tab') { e.preventDefault(); rk.tab = rk.tab === 'all' ? 'group' : 'all'; loadRanking(); }
+      if (k === 'ArrowUp' || k === 'ArrowDown') { e.preventDefault(); const i = PERIODS.indexOf(rk.per); rk.per = PERIODS[(i + (k === 'ArrowDown' ? 1 : PERIODS.length - 1)) % PERIODS.length]; loadRanking(); }
       return;
     }
     if ((k === 'l' || k === 'L') && (mode === 'title' || (mode === 'play' && (S.phase === 'finish' || S.phase === 'dnf')))) { openRanking(); return; }
@@ -1001,8 +1048,9 @@ if (typeof document !== 'undefined') (function () {
     } else if (mode === 'ranking') {
       list.push({ id: 'rkPrev', x: 36, y: 92, w: 50, h: 40, text: '◀' });
       list.push({ id: 'rkNext', x: W - 86, y: 92, w: 50, h: 40, text: '▶' });
-      list.push({ id: 'tabAll', x: 40, y: 144, w: 196, h: 40, text: L('全体', 'WORLD'), main: rk.tab === 'all' });
-      list.push({ id: 'tabGroup', x: 244, y: 144, w: 196, h: 40, text: L('グループ', 'GROUP'), main: rk.tab === 'group' });
+      list.push({ id: 'tabAll', x: 40, y: 140, w: 196, h: 38, text: L('全体', 'WORLD'), main: rk.tab === 'all' });
+      list.push({ id: 'tabGroup', x: 244, y: 140, w: 196, h: 38, text: L('グループ', 'GROUP'), main: rk.tab === 'group' });
+      PERIODS.forEach((per, i) => list.push({ id: 'per_' + per, x: 40 + i * 80, y: 186, w: 76, h: 32, text: perName(per), main: rk.per === per }));
       list.push({ id: 'back', x: 40, y: 616, w: 196, h: 48, text: L('戻る', 'BACK') });
       list.push({ id: 'profile', x: 244, y: 616, w: 196, h: 48, text: L('名前・グループ', 'NAME & GROUP') });
     }
@@ -1021,6 +1069,7 @@ if (typeof document !== 'undefined') (function () {
     else if (b.id === 'profile') openProfile();
     else if (b.id === 'back') goTitle();
     else if (b.id === 'rkPrev' || b.id === 'rkNext') { selectCourse(COURSE_IDX + (b.id === 'rkPrev' ? -1 : 1)); loadRanking(); }
+    else if (b.id.startsWith('per_')) { rk.per = b.id.slice(4); loadRanking(); }
     else if (b.id === 'tabAll' || b.id === 'tabGroup') { rk.tab = b.id === 'tabAll' ? 'all' : 'group'; loadRanking(); }
   }
   const touchMap = new Map();   // 指ごとのステア値
@@ -1118,7 +1167,9 @@ if (typeof document !== 'undefined') (function () {
         lbMsg = '';
         if ((pb === null || S.finalT < pb.t)) { pb = run; best = run.t; saveJSON(COURSE_DEF.best, run); newRecord = true; }
         if ((rec === null || S.finalT < rec.t)) { rec = run; saveJSON(crKey(COURSE_DEF), run); newCR = true; }
-        if (newRecord && lbOn()) submitRun(COURSE_DEF, run, true);
+        perImproved = updatePeriods(COURSE_DEF, run);
+        const pers = perImproved.concat(newRecord ? ['all'] : []);
+        if (pers.length && lbOn()) submitRun(COURSE_DEF, run, true, pers);
         sfx.finish(newRecord);
       }
     }
@@ -1957,6 +2008,10 @@ if (typeof document !== 'undefined') (function () {
         const d = rec ? S.finalT - rec.t : null;
         if (d !== null) centerText(L('コースレコード ', 'Record ') + fmt(rec.t) + (rec.name && !rec.mine ? ' (' + rec.name + ')' : '') + '  ' + fmtD(d), 300, 17, dCol(d), '800');
         if (newRecord) centerText(L('自己ベスト更新！', 'NEW PERSONAL BEST!') + (prevPb ? '  (' + fmtD(S.finalT - prevPb.t) + ')' : ''), 324, 14, '#ffd166', '800');
+        else if (perImproved.length) {
+          const big = ['y', 'm', 'w', 'd'].find(p => perImproved.includes(p));
+          centerText(L(perName(big) + 'のベスト更新！', perName(big) + "'s best!") + (pb ? L('　自己ベスト ', '  PB ') + fmt(pb.t) : ''), 324, 14, '#ffd166', '800');
+        }
         else if (pb) centerText(L('自己ベスト ', 'PB ') + fmt(pb.t) + '  (' + fmtD(S.finalT - pb.t) + ')', 324, 13, '#9fc3e0', '700');
       }
       // 区間ごとのコースレコード比
