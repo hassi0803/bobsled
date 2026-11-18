@@ -1,0 +1,32 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ランキング：boards/{コース__all または コース__g_合言葉}/scores/{プレイヤーID}
+    match /boards/{board}/scores/{uid} {
+      // 誰でも見られる
+      allow read: if board.matches('^(ice|nagano)__(all|g_[^/]{1,20})$');
+
+      // 書けるのは自分の記録だけ。中身の形と、ありえないタイムをここではじく
+      allow create: if validRun(board, uid);
+      // 更新は、前より速いか同じタイムのときだけ（名前の変更もこれで通る）
+      allow update: if validRun(board, uid) && request.resource.data.t <= resource.data.t;
+      allow delete: if false;
+    }
+
+    function validRun(board, uid) {
+      let d = request.resource.data;
+      let sp = d.splits;
+      return request.auth != null && request.auth.uid == uid
+        && board.matches('^(ice|nagano)__(all|g_[^/]{1,20})$')
+        && d.keys().hasOnly(['name', 't', 'splits', 'crashed', 'ts'])
+        && d.keys().hasAll(['name', 't', 'splits', 'crashed', 'ts'])
+        && d.name is string && d.name.size() >= 1 && d.name.size() <= 12
+        && d.crashed is bool
+        && d.ts == request.time
+        && d.t is number && d.t >= 45 && d.t <= 300
+        && sp is list && sp.size() == 5
+        && sp[0] is number && sp[0] >= 3.5
+        && sp[0] < sp[1] && sp[1] < sp[2] && sp[2] < sp[3] && sp[3] < sp[4] && sp[4] < d.t;
+    }
+  }
+}
