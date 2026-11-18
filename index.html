@@ -218,6 +218,32 @@ const COURSES = [
       { a:  -98, R: 1200, g: 0.082, gap:    0 },
     ],
   },
+  {
+    // コルティナ・スライディングセンター（2026年大会。旧エウジェニオ・モンティ跡地に新設）
+    //  距離 1,750m・16カーブ（Wikipedia / Pizzarotti / FIL）。カーブ名は FIL の紹介記事の順
+    //  左右・区間の長さ … 滑走カメラ映像（YouTube）の各カーブ・直線の所要時間から速度推定で逆算
+    //  角度 … 公式のコース図が見つからないため、所要時間と速度から推定（要・経験者チェック）
+    id: 'cortina', name: 'CORTINA', sub: 'コルティナ（2026年大会コース）', subEn: 'Cortina (2026 Games track)', best: 'bobsled_pb_cortina_v1', rec: [4.96, 22.33, 35.16, 46.51, 57.27, 67.96],
+    startLen: 1680, startG: 0.095, finLen: 1100, finG: 0.04, len: 1750, gk: 1.15,
+    layout: [
+      { a:  -94, R:   880, g: 0.092, gap:   320, name: 'ストリエス' },
+      { a:  130, R:   880, g: 0.092, gap:   960, name: 'ヴェルツィ' },
+      { a: -146, R:   920, g: 0.092, gap:  2200, name: 'セント' },
+      { a:   89, R:  1030, g: 0.092, gap:  1440, name: 'ラビリンティ1' },
+      { a:  -88, R:  1100, g: 0.092, gap:  1480, name: 'ラビリンティ2' },
+      { a:   89, R:  1150, g: 0.092, gap:  1560, name: 'ラビリンティ3' },
+      { a:  -88, R:  1200, g: 0.086, gap:   280, name: 'ベルヴェデーレ' },
+      { a:  186, R:  1230, g: 0.086, gap:   280, name: 'ラーゴ・バンディオン' },
+      { a:  -87, R:  1270, g: 0.086, gap:  4600, name: 'リノK2' },          // このあと アンテラオの直線
+      { a: -137, R:  1310, g: 0.086, gap:   280, name: 'アンテラオ' },
+      { a:  176, R:  1340, g: 0.086, gap:  1360, name: 'クリスタッロ' },
+      { a:    6, R:  7000, g: 0.080, gap:   320, bank: 0, name: 'ソピアゼス1' },       // シケイン
+      { a:   -6, R:  7000, g: 0.080, gap:   320, bank: 0, name: 'ソピアゼス2' },
+      { a: -137, R:  1360, g: 0.080, gap:  1840, name: 'トファーナ' },
+      { a: -187, R:  1380, g: 0.080, gap:   600, name: 'アンペゾ' },
+      { a:   84, R:  1390, g: 0.080, gap:     0, name: 'アッリーヴォ' },
+    ],
+  },
 ];
 
 const TRANS = 0.3;   // カーブの入口・出口の長さ（カーブ長に対する割合の目安）
@@ -515,7 +541,10 @@ if (typeof document !== 'undefined') (function () {
   let LANG = 'ja';
   try { LANG = localStorage.getItem('bobsled_lang') || ((navigator.language || '').toLowerCase().startsWith('ja') ? 'ja' : 'en'); } catch (e) {}
   const L = (ja, en) => LANG === 'ja' ? ja : en;
-  const CURVE_EN = { 'ラビリンス': 'Labyrinth', 'クライゼル': 'Kreisel', 'ヘアピン': 'Hairpin', 'ほぼ直線': 'Nearly straight' };
+  const CURVE_EN = { 'ラビリンス': 'Labyrinth', 'クライゼル': 'Kreisel', 'ヘアピン': 'Hairpin', 'ほぼ直線': 'Nearly straight',
+    'ストリエス': 'Stries', 'ヴェルツィ': 'Verzi', 'セント': 'Sento', 'ラビリンティ1': 'Labirinti 1', 'ラビリンティ2': 'Labirinti 2', 'ラビリンティ3': 'Labirinti 3',
+    'ベルヴェデーレ': 'Belvedere', 'ラーゴ・バンディオン': 'Lago Bandion', 'リノK2': 'Lino K2', 'アンテラオ': 'Antelao', 'クリスタッロ': 'Cristallo',
+    'ソピアゼス1': 'Sopiazes 1', 'ソピアゼス2': 'Sopiazes 2', 'トファーナ': 'Tofana', 'アンペゾ': 'Anpezo', 'アッリーヴォ': 'Arrivo' };
   const curveName = n => n ? L(n, CURVE_EN[n] || n) : '';
   // 国旗（ISO 2文字 → 絵文字）
   const flag = cc => cc && /^[A-Z]{2}$/.test(cc) ? String.fromCodePoint(...[...cc].map(ch => 0x1F1A5 + ch.charCodeAt(0))) : '';
@@ -982,7 +1011,7 @@ if (typeof document !== 'undefined') (function () {
     if (mode === 'title' && !e.repeat) {
       if (k === 'ArrowLeft' || k === 'a' || k === 'A') selectCourse(COURSE_IDX - 1);
       if (k === 'ArrowRight' || k === 'd' || k === 'D') selectCourse(COURSE_IDX + 1);
-      if (k === '1' || k === '2') selectCourse(+k - 1);
+      if (k >= '1' && k <= String(COURSES.length)) selectCourse(+k - 1);
     }
     if ((k === 't' || k === 'T') && mode === 'play' && (S.phase === 'finish' || S.phase === 'dnf')) goTitle();
     if (k === ' ' || k === 'ArrowUp') {
@@ -1124,11 +1153,83 @@ if (typeof document !== 'undefined') (function () {
   }
   // タイトル画面のコース切り替えボタン
   const SEL_Y = 196, SEL_H = 60;
+  // タイトルのコース一覧：カードを横に3枚。4コース以上になったら選択中を中心にずらして見せる
+  const CARD_Y = 180, CARD_H = 150, CARD_N = 3, CARD_W = 124, CARD_GAP = 12;
+  function titleCards() {
+    const n = Math.min(CARD_N, COURSES.length);
+    const first = clamp(COURSE_IDX - 1, 0, COURSES.length - n);
+    const x0 = (W - (n * CARD_W + (n - 1) * CARD_GAP)) / 2;
+    const list = [];
+    for (let k = 0; k < n; k++) list.push({ i: first + k, x: x0 + k * (CARD_W + CARD_GAP), y: CARD_Y, w: CARD_W, h: CARD_H });
+    return list;
+  }
   function titleTap(p) {
-    if (p.y < SEL_Y || p.y > SEL_Y + SEL_H) return false;
-    if (p.x < 100) { selectCourse(COURSE_IDX - 1); return true; }
-    if (p.x > W - 100) { selectCourse(COURSE_IDX + 1); return true; }
+    for (const c of titleCards()) {
+      if (p.x >= c.x && p.x <= c.x + c.w && p.y >= c.y && p.y <= c.y + c.h) { if (c.i !== COURSE_IDX) { selectCourse(c.i); sfx.click(); } return true; }
+    }
     return false;
+  }
+  // コースの全景（上から見た形）。最初に描くときに一度だけ作る
+  const THUMBS = [];
+  function thumbOf(i) {
+    if (THUMBS[i]) return THUMBS[i];
+    const def = COURSES[i], C = buildCourse(def);
+    const nFin = Math.min(C.n - 1, Math.round(C.finS / DS));
+    const raw = [];
+    for (let j = 0; j <= nFin; j += 24) raw.push([C.X[j], C.Z[j]]);
+    raw.push([C.X[nFin], C.Z[nFin]]);
+    let minX = 1e9, maxX = -1e9, minZ = 1e9, maxZ = -1e9;
+    for (const [x, z] of raw) { minX = Math.min(minX, x); maxX = Math.max(maxX, x); minZ = Math.min(minZ, z); maxZ = Math.max(maxZ, z); }
+    const bw = CARD_W - 20, bh = 92, sc = Math.min(bw / (maxX - minX || 1), bh / (maxZ - minZ || 1));
+    const ox = (bw - (maxX - minX) * sc) / 2, oz = (bh - (maxZ - minZ) * sc) / 2;
+    const pts = raw.map(([x, z]) => [10 + ox + (x - minX) * sc, 10 + bh - (oz + (z - minZ) * sc)]);
+    let len = 0; const cum = [0];
+    for (let k = 1; k < pts.length; k++) { len += Math.hypot(pts[k][0] - pts[k - 1][0], pts[k][1] - pts[k - 1][1]); cum.push(len); }
+    return (THUMBS[i] = { pts, cum, len, curves: C.curves.length, m: Math.round(C.finS / PXM) });
+  }
+  function drawCourseCards() {
+    const now = performance.now();
+    for (const c of titleCards()) {
+      const sel = c.i === COURSE_IDX, th = thumbOf(c.i), def = COURSES[c.i];
+      // カード
+      const bg = ctx.createLinearGradient(0, c.y, 0, c.y + c.h);
+      bg.addColorStop(0, sel ? 'rgba(79,195,247,0.30)' : 'rgba(255,255,255,0.07)');
+      bg.addColorStop(1, sel ? 'rgba(79,195,247,0.10)' : 'rgba(255,255,255,0.03)');
+      ctx.fillStyle = bg; roundRect(c.x, c.y, c.w, c.h, 12); ctx.fill();
+      ctx.lineWidth = sel ? 2.5 : 1; ctx.strokeStyle = sel ? '#4fc3f7' : 'rgba(255,255,255,0.18)'; ctx.stroke();
+      // コースの形
+      ctx.save(); ctx.translate(c.x, c.y);
+      ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+      const path = () => { ctx.beginPath(); th.pts.forEach(([x, y], k) => k ? ctx.lineTo(x, y) : ctx.moveTo(x, y)); };
+      path(); ctx.strokeStyle = 'rgba(5,12,22,0.55)'; ctx.lineWidth = 6; ctx.stroke();
+      path(); ctx.strokeStyle = sel ? '#e9f6ff' : 'rgba(220,235,248,0.65)'; ctx.lineWidth = 2.6; ctx.stroke();
+      const [sx, sy] = th.pts[0], [fx, fy] = th.pts[th.pts.length - 1];
+      ctx.fillStyle = '#7ee081'; ctx.beginPath(); ctx.arc(sx, sy, 3.6, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#ffd166'; ctx.fillRect(fx - 3.5, fy - 3.5, 7, 7);
+      // 選択中のコースは、ソリが全景をくり返し走る
+      if (sel) {
+        const u = ((now / 4200) % 1) * th.len;
+        let k = 1; while (k < th.cum.length - 1 && th.cum[k] < u) k++;
+        const t = (u - th.cum[k - 1]) / ((th.cum[k] - th.cum[k - 1]) || 1);
+        const px = th.pts[k - 1][0] + (th.pts[k][0] - th.pts[k - 1][0]) * t, py = th.pts[k - 1][1] + (th.pts[k][1] - th.pts[k - 1][1]) * t;
+        ctx.fillStyle = 'rgba(230,57,70,0.35)'; ctx.beginPath(); ctx.arc(px, py, 7, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#e63946'; ctx.beginPath(); ctx.arc(px, py, 3.8, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.4; ctx.stroke();
+      }
+      ctx.restore();
+      // 名前と距離
+      ctx.textAlign = 'center';
+      ctx.fillStyle = sel ? '#ffd166' : '#ffffff'; ctx.font = `900 ${def.name.length > 11 ? 12.5 : 14}px system-ui,"Hiragino Sans",sans-serif`;
+      ctx.fillText(def.name, c.x + c.w / 2, c.y + 124);
+      ctx.fillStyle = '#9fc3e0'; ctx.font = 'bold 11px system-ui,"Hiragino Sans",sans-serif';
+      ctx.fillText(th.m + 'm ・ ' + th.curves + L('カーブ', ' curves'), c.x + c.w / 2, c.y + 141);
+    }
+    // 4コース以上のときの「まだある」印
+    const cs = titleCards();
+    ctx.fillStyle = '#4fc3f7'; ctx.font = '900 18px system-ui,sans-serif'; ctx.textAlign = 'center';
+    if (cs[0].i > 0) ctx.fillText('‹', cs[0].x - 9, CARD_Y + CARD_H / 2 + 6);
+    if (cs[cs.length - 1].i < COURSES.length - 1) ctx.fillText('›', cs[cs.length - 1].x + CARD_W + 9, CARD_Y + CARD_H / 2 + 6);
+    ctx.textAlign = 'left';
   }
 
   function popup(text, color, sub) { popups.push({ text, color, sub: sub || '', t: 0, life: 1.5 }); }
@@ -1938,25 +2039,20 @@ if (typeof document !== 'undefined') (function () {
       ctx.fillRect(0, 0, W, H);
       panel(30, 110, W - 60, 530);
       centerText('BOBSLED', 160, 40, '#ffffff', '900');
-      // コース選択
-      ctx.fillStyle = 'rgba(79,195,247,0.12)'; roundRect(46, SEL_Y, W - 92, SEL_H, 10); ctx.fill();
-      centerText(COURSE_DEF.name, SEL_Y + 26, 22, '#ffd166', '900');
-      centerText(L(COURSE_DEF.sub, COURSE_DEF.subEn) + '  ' + CURVES.length + L('カーブ  ', ' curves  ') + Math.round(S_FIN / PXM) + 'm', SEL_Y + 48, 12.5, '#ffffff', '600');
-      const pulse = 0.6 + 0.4 * Math.sin(performance.now() / 250);
-      ctx.globalAlpha = pulse;
-      ctx.textAlign = 'center'; ctx.fillStyle = '#4fc3f7'; ctx.font = '900 26px system-ui,sans-serif'; ctx.fillText('◀', 70, SEL_Y + 40); ctx.fillText('▶', W - 70, SEL_Y + 40);
-      ctx.globalAlpha = 1;
+      // コース一覧（全景つき）
+      drawCourseCards();
+      centerText(L(COURSE_DEF.sub, COURSE_DEF.subEn), 352, 13, '#ffffff', '700');
       // 操作はこの3つだけ
       const keysHelp = [[L('SPACE 連打', 'Tap SPACE'), L('プッシュ', 'Push')], ['↓', L('乗り込み', 'Load in')], ['← →', L('操縦', 'Steer')]];
       keysHelp.forEach(([k, t], i) => {
-        const y = 300 + i * 46;
-        ctx.fillStyle = 'rgba(255,255,255,0.12)'; roundRect(96, y - 25, 150, 36, 8); ctx.fill();
-        ctx.textAlign = 'center'; ctx.fillStyle = '#ffd166'; ctx.font = `900 ${k.length > 3 ? 19 : 28}px system-ui,"Hiragino Sans",sans-serif`;
-        ctx.fillText(k, 171, y + (k.length > 3 ? 0 : 3));
-        ctx.textAlign = 'left'; ctx.fillStyle = '#ffffff'; ctx.font = '800 19px system-ui,"Hiragino Sans",sans-serif';
-        ctx.fillText(t, 268, y);
+        const y = 382 + i * 30;
+        ctx.fillStyle = 'rgba(255,255,255,0.12)'; roundRect(110, y - 20, 130, 28, 7); ctx.fill();
+        ctx.textAlign = 'center'; ctx.fillStyle = '#ffd166'; ctx.font = `900 ${k.length > 3 ? 15 : 22}px system-ui,"Hiragino Sans",sans-serif`;
+        ctx.fillText(k, 175, y + (k.length > 3 ? -1 : 2));
+        ctx.textAlign = 'left'; ctx.fillStyle = '#ffffff'; ctx.font = '800 16px system-ui,"Hiragino Sans",sans-serif';
+        ctx.fillText(t, 262, y - 1);
       });
-      centerText(L('スマホは画面のボタンで', 'On phones, use the on-screen buttons'), 438, 12, '#9fc3e0', '600');
+      centerText(L('スマホは画面のボタンで', 'On phones, use the on-screen buttons'), 468, 11, '#9fc3e0', '600');
       centerText(L('自己ベスト ', 'PB ') + fmt(best) + L('　　コースレコード ', '    Record ') + (rec ? fmt(rec.t) + (rec.mine ? L('（あなた）', ' (you)') : rec.name ? ' (' + (rec.cc ? flag(rec.cc) + ' ' : '') + rec.name + ')' : '') : '--'), 490, 14, '#4fc3f7');
       centerText(L('SPACE でスタート', 'Press SPACE to start'), 626, 11, '#9fc3e0', '600');
     }
