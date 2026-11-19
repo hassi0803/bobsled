@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>BOBSLED - ボブスレー体験ゲーム</title>
-<meta name="description" content="一人称視点で滑るボブスレーゲーム。押して、乗り込んで、遠心力と戦え。長野・コルティナ・アルテンベルクなど実在のコースを再現。スマホ対応。">
+<meta name="description" content="一人称視点で滑るボブスレーゲーム。押して、乗り込んで、遠心力と戦え。長野・コルティナ・アルテンベルク・サンモリッツなど実在のコースを再現。スマホ対応。">
 <meta property="og:title" content="BOBSLED - ボブスレー体験ゲーム">
 <meta property="og:description" content="押して、乗り込んで、遠心力と戦え。コースレコード60秒を切れるか？スマホでそのまま遊べます。">
 <meta property="og:type" content="website">
@@ -273,6 +273,37 @@ const COURSES = [
       { a:  -46, R:  1380, g: 0.085, gap:  1040, name: 'ツィールクライゼル1' },
       { a:  -92, R:  1111, g: 0.085, gap:     0, name: 'ツィールクライゼル2' },
       { a:  -92, R:  1131, g: 0.085, gap:     0, name: 'ツィールクライゼル3' },
+    ],
+  },
+  {
+    // サンモリッツ＝ツェレリーナ（スイス）Olympia Bob Run St. Moritz–Celerina
+    //  距離 1,722m・19カーブ・高低差 130m。世界で唯一の天然氷のコース（1904年〜）
+    //  形 … 公式のコース図（olympia-bobrun.ch）の線から角度を計算し、図中の区間距離
+    //       （387m・238m・346m・298m・372m・231m）で長さを補正。
+    //  キンク1・2／スネーク1・2 は図ではほぼ直線のため、ゆるい曲がりとして推定（要・経験者チェック）
+    id: 'stmoritz', name: 'ST. MORITZ', sub: 'サンモリッツ', subEn: 'St. Moritz', cc: 'CH', country: ['スイス', 'Switzerland'],
+    feat: ['世界で唯一の天然氷のコース。長い直線のあとに大カーブが続く', 'The only natural-ice track: a long straight, then big curves'], best: 'bobsled_pb_stmoritz_v1', rec: [4.96, 22.70, 36.01, 48.48, 61.29, 74.52],
+    startLen: 1200, startG: 0.11, finLen: 400, finG: 0.03, len: 1722, gk: 0.91,
+    layout: [
+      { a:   -7, R:  4920, g: 0.100, gap: 11200, bank: 0, name: 'キンク1' },
+      { a:   -7, R:  4920, g: 0.095, gap:  2000, bank: 0, name: 'キンク2' },
+      { a:  -10, R:  3690, g: 0.095, gap:   400, bank: 0, name: 'スネーク1' },
+      { a:    8, R:  3690, g: 0.095, gap:  1200, bank: 0, name: 'スネーク2' },
+      { a: -137, R:  1620, g: 0.090, gap:   160, name: 'ウォール' },
+      { a:  200, R:   970, g: 0.090, gap:   400, name: 'サニー' },
+      { a:  -24, R:  1320, g: 0.085, gap:    40, name: 'モンティズ・ボルト' },
+      { a:  -10, R:  9230, g: 0.085, gap:  1200, bank: 0, name: 'ナッシュ・ディクソン' },
+      { a: -183, R:   880, g: 0.085, gap:     0, name: 'ホースシュー' },
+      { a:   51, R:  1880, g: 0.080, gap:     0, name: 'テレフォン' },
+      { a:   61, R:  1280, g: 0.080, gap:    40, name: 'シャムロック' },
+      { a: -115, R:  1670, g: 0.080, gap:   400, name: 'デビルズ・ダイク' },
+      { a:  -26, R:  2780, g: 0.075, gap:    80, name: 'ネームレス' },
+      { a:   60, R:  2090, g: 0.075, gap:    80, name: 'ツリー' },
+      { a:   92, R:  1470, g: 0.075, gap:  1640, name: 'ブリッジ' },
+      { a:   11, R:  4290, g: 0.075, gap:  1400, name: 'リープ' },
+      { a:   24, R:  5090, g: 0.070, gap:  2600, name: 'ギュンター・ザックス' },
+      { a: -117, R:  1180, g: 0.070, gap:     0, name: 'マルティノー' },
+      { a:  -89, R:  1380, g: 0.070, gap:     0, name: 'ポルターゴ' },
     ],
   },
 ];
@@ -577,7 +608,10 @@ if (typeof document !== 'undefined') (function () {
     'ベルヴェデーレ': 'Belvedere', 'ラーゴ・バンディオン': 'Lago Bandion', 'リノK2': 'Lino K2', 'アンテラオ': 'Antelao', 'クリスタッロ': 'Cristallo',
     'ソピアゼス1': 'Sopiazes 1', 'ソピアゼス2': 'Sopiazes 2', 'トファーナ': 'Tofana', 'アンペゾ': 'Anpezo', 'アッリーヴォ': 'Arrivo',
     'オメガ1': 'Omega 1', 'オメガ2': 'Omega 2', 'オメガ3': 'Omega 3', 'ラビリンス1': 'Labyrinth 1', 'ラビリンス2': 'Labyrinth 2', 'ラビリンス3': 'Labyrinth 3', 'ラビリンス4': 'Labyrinth 4',
-    'ツィールクライゼル1': 'Zielkreisel 1', 'ツィールクライゼル2': 'Zielkreisel 2', 'ツィールクライゼル3': 'Zielkreisel 3' };
+    'ツィールクライゼル1': 'Zielkreisel 1', 'ツィールクライゼル2': 'Zielkreisel 2', 'ツィールクライゼル3': 'Zielkreisel 3',
+    'キンク1': 'Kink 1', 'キンク2': 'Kink 2', 'スネーク1': 'Snake 1', 'スネーク2': 'Snake 2', 'ウォール': 'Wall', 'サニー': 'Sunny', 'モンティズ・ボルト': "Monti's Bolt",
+    'ナッシュ・ディクソン': 'Nash-Dixon', 'ホースシュー': 'Horse-Shoe', 'テレフォン': 'Telephone', 'シャムロック': 'Shamrock', 'デビルズ・ダイク': 'Devils Dyke', 'ネームレス': 'Nameless',
+    'ツリー': 'Tree', 'ブリッジ': 'Bridge', 'リープ': 'Leap', 'ギュンター・ザックス': 'Gunter Sachs', 'マルティノー': 'Martineau', 'ポルターゴ': 'Portago' };
   const curveName = n => n ? L(n, CURVE_EN[n] || n) : '';
   // 国旗（ISO 2文字 → 絵文字）
   const flag = cc => cc && /^[A-Z]{2}$/.test(cc) ? String.fromCodePoint(...[...cc].map(ch => 0x1F1A5 + ch.charCodeAt(0))) : '';
