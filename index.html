@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>BOBSLED - ボブスレー体験ゲーム</title>
-<meta name="description" content="一人称視点で滑るボブスレーゲーム。押して、乗り込んで、遠心力と戦え。長野・コルティナ・アルテンベルク・サンモリッツなど実在のコースを再現。スマホ対応。">
+<meta name="description" content="一人称視点で滑るボブスレーゲーム。押して、乗り込んで、遠心力と戦え。長野・コルティナ・ウィスラー・サンモリッツなど世界の実在コースを再現。スマホ対応。">
 <meta property="og:title" content="BOBSLED - ボブスレー体験ゲーム">
 <meta property="og:description" content="押して、乗り込んで、遠心力と戦え。コースレコード60秒を切れるか？スマホでそのまま遊べます。">
 <meta property="og:type" content="website">
@@ -50,7 +50,10 @@ if (CFG) (async () => {
     const [A, U, F] = await Promise.all([import(B + 'firebase-app.js'), import(B + 'firebase-auth.js'), import(B + 'firebase-firestore.js')]);
     const app = A.initializeApp(CFG);
     const db = F.getFirestore(app);
-    const cred = await U.signInAnonymously(U.getAuth(app));
+    // ログイン情報は localStorage に保存する（Safari はブラウザを閉じると IndexedDB が消えることがあり、別人扱いになっていた）
+    //  既に IndexedDB に入っている人の情報は、Firebase が自動で localStorage に移す
+    const auth = U.initializeAuth(app, { persistence: [U.browserLocalPersistence, U.indexedDBLocalPersistence, U.inMemoryPersistence] });
+    const cred = await U.signInAnonymously(auth);
     const uid = cred.user.uid;
     const col = board => F.collection(db, 'boards', board, 'scores');
     window.LB = {
@@ -273,6 +276,33 @@ const COURSES = [
       { a:  -46, R:  1380, g: 0.085, gap:  1040, name: 'ツィールクライゼル1' },
       { a:  -92, R:  1111, g: 0.085, gap:     0, name: 'ツィールクライゼル2' },
       { a:  -92, R:  1131, g: 0.085, gap:     0, name: 'ツィールクライゼル3' },
+    ],
+  },
+  {
+    // ウィスラー・スライディングセンター（カナダ／2010年大会）
+    //  距離 1,450m・16カーブ・スタート→最低点 150m 下り、最後の サンダーバード で 17m 上ってゴール
+    //  形 … Wikimedia の線画コース図（Whistler_Sliding_Centre-track_map_english.svg）の中心線から角度と長さを計算
+    //  左右・組み合わせ・C8（半径1000mの「曲がった直線」）・高低差 … 設計書（IBG Gurgel, Final Design 2004）で確認
+    id: 'whistler', name: 'WHISTLER', sub: 'ウィスラー（2010年大会コース）', subEn: 'Whistler (2010 Games track)', cc: 'CA', country: ['カナダ', 'Canada'],
+    feat: ['世界最速のコース。急な下りでぐんぐん加速し、最後は上ってゴール', 'The fastest track in the world: steep drops, then an uphill finish'], best: 'bobsled_pb_whistler_v1', rec: [4.95, 18.44, 28.18, 38.21, 48.28, 60.80],
+    startLen: 2400, startG: 0.12, finLen: 2240, finG: -0.10, len: 1450, gk: 1.09,
+    layout: [
+      { a:   79, R:   650, g: 0.14, gap:  1160, name: 'スリングショット' },
+      { a: -150, R:   600, g: 0.18, gap:  1760, name: 'フォールアウェイ' },
+      { a:  -44, R:  1350, g: 0.17, gap:   840, name: 'ウェッジ' },
+      { a:  192, R:   700, g: 0.13, gap:   840 },
+      { a:  -20, R:  2600, g: 0.11, gap:   920 },
+      { a: -166, R:   870, g: 0.11, gap:  1280 },
+      { a:  177, R:   960, g: 0.11, gap:     0, name: 'ルーダーズ・ループ' },
+      { a:    3, R: 40000, g: 0.1, gap:     0, bank: 0 },
+      { a:  -76, R:  1220, g: 0.1, gap:   720, name: 'リンクス1' },
+      { a:  -75, R:  1210, g: 0.1, gap:   680, name: 'リンクス2' },
+      { a:  131, R:  1220, g: 0.1, gap:  1040, name: 'シヴァー' },
+      { a:  -58, R:  1550, g: 0.08, gap:  1200, name: 'ゴールドラッシュ1' },
+      { a:   15, R:  4310, g: 0.08, gap:  1160, name: 'ゴールドラッシュ2' },
+      { a:  -57, R:  1580, g: 0.08, gap:   760, name: 'ゴールドラッシュ3' },
+      { a:   60, R:  1600, g: 0.06, gap:   920, name: 'ゴールドラッシュ4' },
+      { a:  165, R:  1210, g: -0.10, gap:     0, up: true, name: 'サンダーバード' },
     ],
   },
   {
@@ -611,7 +641,9 @@ if (typeof document !== 'undefined') (function () {
     'ツィールクライゼル1': 'Zielkreisel 1', 'ツィールクライゼル2': 'Zielkreisel 2', 'ツィールクライゼル3': 'Zielkreisel 3',
     'キンク1': 'Kink 1', 'キンク2': 'Kink 2', 'スネーク1': 'Snake 1', 'スネーク2': 'Snake 2', 'ウォール': 'Wall', 'サニー': 'Sunny', 'モンティズ・ボルト': "Monti's Bolt",
     'ナッシュ・ディクソン': 'Nash-Dixon', 'ホースシュー': 'Horse-Shoe', 'テレフォン': 'Telephone', 'シャムロック': 'Shamrock', 'デビルズ・ダイク': 'Devils Dyke', 'ネームレス': 'Nameless',
-    'ツリー': 'Tree', 'ブリッジ': 'Bridge', 'リープ': 'Leap', 'ギュンター・ザックス': 'Gunter Sachs', 'マルティノー': 'Martineau', 'ポルターゴ': 'Portago' };
+    'ツリー': 'Tree', 'ブリッジ': 'Bridge', 'リープ': 'Leap', 'ギュンター・ザックス': 'Gunter Sachs', 'マルティノー': 'Martineau', 'ポルターゴ': 'Portago',
+    'スリングショット': 'Slingshot', 'フォールアウェイ': 'Fallaway', 'ウェッジ': 'Wedge', 'ルーダーズ・ループ': 'Lueders Loop', 'リンクス1': 'Lynx 1', 'リンクス2': 'Lynx 2', 'シヴァー': 'Shiver',
+    'ゴールドラッシュ1': 'Gold Rush 1', 'ゴールドラッシュ2': 'Gold Rush 2', 'ゴールドラッシュ3': 'Gold Rush 3', 'ゴールドラッシュ4': 'Gold Rush 4', 'サンダーバード': 'Thunderbird' };
   const curveName = n => n ? L(n, CURVE_EN[n] || n) : '';
   // 国旗（ISO 2文字 → 絵文字）
   const flag = cc => cc && /^[A-Z]{2}$/.test(cc) ? String.fromCodePoint(...[...cc].map(ch => 0x1F1A5 + ch.charCodeAt(0))) : '';
