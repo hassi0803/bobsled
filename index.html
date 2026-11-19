@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>BOBSLED - ボブスレー体験ゲーム</title>
-<meta name="description" content="一人称視点で滑るボブスレーゲーム。押して、乗り込んで、遠心力と戦え。長野スパイラルを再現したコースも収録。スマホ対応。">
+<meta name="description" content="一人称視点で滑るボブスレーゲーム。押して、乗り込んで、遠心力と戦え。長野・コルティナ・アルテンベルクなど実在のコースを再現。スマホ対応。">
 <meta property="og:title" content="BOBSLED - ボブスレー体験ゲーム">
 <meta property="og:description" content="押して、乗り込んで、遠心力と戦え。コースレコード60秒を切れるか？スマホでそのまま遊べます。">
 <meta property="og:type" content="website">
@@ -172,7 +172,8 @@ function wallTop(b, fh = floorOf(b)) {
 // =====================================================================
 const COURSES = [
   {
-    id: 'ice', name: 'ICE RUN', sub: '架空コース', subEn: 'Original track', best: 'bobsled_pb_ice_v4', rec: [4.92, 20.47, 32.03, 42.55, 52.50, 62.45],
+    id: 'ice', name: 'ICE RUN', sub: '架空コース', subEn: 'Original track', cc: '', country: ['オリジナル', 'Original'],
+    feat: ['300°回り続ける大カーブと左右の切り返し。直線が短く忙しい', 'A 300° near-loop, quick S-bends and short straights'], best: 'bobsled_pb_ice_v4', rec: [4.92, 20.47, 32.03, 42.55, 52.50, 62.45],
     startLen: 1200, startG: 0.10, finLen: 1600, finG: 0.06, len: 1609, gk: 1.10,
     layout: [
       { a:   70, R: 1500, g: 0.10, gap: 500 },
@@ -198,7 +199,8 @@ const COURSES = [
     //  角度・左右 … 長野市の公式コース図から読み取り
     //  区間の長さ … 滑走カメラ映像（YouTube）の各カーブ・直線の所要時間から速度推定で逆算
     //  競技距離 1,360m・15カーブ。上り坂：9カーブ後（約4%）と 11〜12カーブ間（約10%）
-    id: 'nagano', name: 'NAGANO SPIRAL', sub: '長野スパイラル（1998年大会コース）', subEn: 'Nagano Spiral (1998 Games track)', best: 'bobsled_pb_nagano_v2', rec: [4.93, 18.88, 29.25, 38.79, 49.73, 60.00],
+    id: 'nagano', name: 'NAGANO', sub: '長野（1998年大会コース）', subEn: 'Nagano (1998 Games track)', cc: 'JP', country: ['日本', 'Japan'],
+    feat: ['ヘアピンが多く、途中に上り坂が2か所ある珍しいコース', 'Many hairpins and two rare uphill sections'], best: 'bobsled_pb_nagano_v2', rec: [4.93, 18.88, 29.25, 38.79, 49.73, 60.00],
     startLen: 2320, startG: 0.095, finLen: 1800, finG: 0.05, len: 1360, gk: 1.08,
     layout: [
       { a:  165, R:  720, g: 0.094, gap: 2800 },
@@ -223,7 +225,8 @@ const COURSES = [
     //  距離 1,750m・16カーブ（Wikipedia / Pizzarotti / FIL）。カーブ名は FIL の紹介記事の順
     //  左右・区間の長さ … 滑走カメラ映像（YouTube）の各カーブ・直線の所要時間から速度推定で逆算
     //  角度 … 公式のコース図が見つからないため、所要時間と速度から推定（要・経験者チェック）
-    id: 'cortina', name: 'CORTINA', sub: 'コルティナ（2026年大会コース）', subEn: 'Cortina (2026 Games track)', best: 'bobsled_pb_cortina_v1', rec: [4.96, 22.33, 35.16, 46.51, 57.27, 67.96],
+    id: 'cortina', name: 'CORTINA', sub: 'コルティナ（2026年大会コース）', subEn: 'Cortina (2026 Games track)', cc: 'IT', country: ['イタリア', 'Italy'],
+    feat: ['最新の大会コース。3連続の高速カーブと長い直線で高速勝負', 'The newest Games track: a fast triple curve and long straights'], best: 'bobsled_pb_cortina_v1', rec: [4.96, 22.33, 35.16, 46.51, 57.27, 67.96],
     startLen: 1680, startG: 0.095, finLen: 1100, finG: 0.04, len: 1750, gk: 1.15,
     layout: [
       { a:  -94, R:   880, g: 0.092, gap:   320, name: 'ストリエス' },
@@ -242,6 +245,34 @@ const COURSES = [
       { a: -137, R:  1360, g: 0.080, gap:  1840, name: 'トファーナ' },
       { a: -187, R:  1380, g: 0.080, gap:   600, name: 'アンペゾ' },
       { a:   84, R:  1390, g: 0.080, gap:     0, name: 'アッリーヴォ' },
+    ],
+  },
+  {
+    // アルテンベルク（ドイツ）SachsenEnergie-Eiskanal
+    //  距離 1,413m・17カーブ・高低差 122m・平均 8.66%（運営元 / Wikipedia）
+    //  形 … Wikimedia の線画コース図（Altenberg_bobsleigh_track-track_map_english.svg）の中心線から
+    //       角度と区間の長さを計算。オメガ(3-5)・ラビリンス(6-9)・クライゼル(10, 320°)・ツィールクライゼル(15-17) は Wikipedia の区分
+    id: 'altenberg', name: 'ALTENBERG', sub: 'アルテンベルク', subEn: 'Altenberg', cc: 'DE', country: ['ドイツ', 'Germany'],
+    feat: ['320°回り続ける大カーブと左右の切り返し。世界屈指の難コース', 'A 320° near-loop and relentless S-bends: one of the toughest'], best: 'bobsled_pb_altenberg_v1', rec: [4.97, 19.55, 31.43, 42.37, 52.59, 62.83],
+    startLen: 2120, startG: 0.12, finLen: 560, finG: 0.03, len: 1413, gk: 1.0,
+    layout: [
+      { a:   20, R:  1851, g: 0.110, gap:  4960 },
+      { a:   37, R:  1001, g: 0.110, gap:   280 },
+      { a:  -60, R:   676, g: 0.110, gap:     0, name: 'オメガ1' },
+      { a: -154, R:   664, g: 0.110, gap:   200, name: 'オメガ2' },
+      { a:   60, R:  1616, g: 0.090, gap:     0, name: 'オメガ3' },
+      { a:   60, R:  1616, g: 0.090, gap:   560, name: 'ラビリンス1' },
+      { a:  -18, R:  1861, g: 0.090, gap:  2840, name: 'ラビリンス2' },
+      { a:   40, R:   970, g: 0.090, gap:     0, name: 'ラビリンス3' },
+      { a:   41, R:   989, g: 0.090, gap:  4280, name: 'ラビリンス4' },
+      { a:  320, R:   826, g: 0.090, gap:  1440, name: 'クライゼル' },
+      { a:  -41, R:  1247, g: 0.085, gap:  3800 },
+      { a:  -43, R:  1271, g: 0.085, gap:   760 },
+      { a:   42, R:   881, g: 0.085, gap:     0 },
+      { a:   41, R:   946, g: 0.085, gap:  4000 },
+      { a:  -46, R:  1380, g: 0.085, gap:  1040, name: 'ツィールクライゼル1' },
+      { a:  -92, R:  1111, g: 0.085, gap:     0, name: 'ツィールクライゼル2' },
+      { a:  -92, R:  1131, g: 0.085, gap:     0, name: 'ツィールクライゼル3' },
     ],
   },
 ];
@@ -544,7 +575,9 @@ if (typeof document !== 'undefined') (function () {
   const CURVE_EN = { 'ラビリンス': 'Labyrinth', 'クライゼル': 'Kreisel', 'ヘアピン': 'Hairpin', 'ほぼ直線': 'Nearly straight',
     'ストリエス': 'Stries', 'ヴェルツィ': 'Verzi', 'セント': 'Sento', 'ラビリンティ1': 'Labirinti 1', 'ラビリンティ2': 'Labirinti 2', 'ラビリンティ3': 'Labirinti 3',
     'ベルヴェデーレ': 'Belvedere', 'ラーゴ・バンディオン': 'Lago Bandion', 'リノK2': 'Lino K2', 'アンテラオ': 'Antelao', 'クリスタッロ': 'Cristallo',
-    'ソピアゼス1': 'Sopiazes 1', 'ソピアゼス2': 'Sopiazes 2', 'トファーナ': 'Tofana', 'アンペゾ': 'Anpezo', 'アッリーヴォ': 'Arrivo' };
+    'ソピアゼス1': 'Sopiazes 1', 'ソピアゼス2': 'Sopiazes 2', 'トファーナ': 'Tofana', 'アンペゾ': 'Anpezo', 'アッリーヴォ': 'Arrivo',
+    'オメガ1': 'Omega 1', 'オメガ2': 'Omega 2', 'オメガ3': 'Omega 3', 'ラビリンス1': 'Labyrinth 1', 'ラビリンス2': 'Labyrinth 2', 'ラビリンス3': 'Labyrinth 3', 'ラビリンス4': 'Labyrinth 4',
+    'ツィールクライゼル1': 'Zielkreisel 1', 'ツィールクライゼル2': 'Zielkreisel 2', 'ツィールクライゼル3': 'Zielkreisel 3' };
   const curveName = n => n ? L(n, CURVE_EN[n] || n) : '';
   // 国旗（ISO 2文字 → 絵文字）
   const flag = cc => cc && /^[A-Z]{2}$/.test(cc) ? String.fromCodePoint(...[...cc].map(ch => 0x1F1A5 + ch.charCodeAt(0))) : '';
@@ -1056,6 +1089,8 @@ if (typeof document !== 'undefined') (function () {
       list.push({ id: 'rank', x: W / 2 - 150, y: 568, w: 145, h: 38, text: L('🏆 ランキング', '🏆 RANKING') });
       list.push({ id: 'profile', x: W / 2 + 5, y: 568, w: 145, h: 38, text: playerName ? '👤 ' + playerName : L('👤 名前を登録', '👤 SET NAME') });
       list.push({ id: 'lang', x: 42, y: 122, w: 64, h: 36, text: LANG === 'ja' ? 'EN' : '日本語' });
+      list.push({ id: 'cPrev', x: 34, y: CARD_Y, w: 34, h: CARD_H, text: '◀' });
+      list.push({ id: 'cNext', x: W - 68, y: CARD_Y, w: 34, h: CARD_H, text: '▶' });
       list.push({ id: 'mute', x: W - 92, y: 122, w: 50, h: 36, text: sfx.muted ? '🔇' : '🔊' });
     } else if (mode === 'play' && S.phase === 'push') {
       list.push({ id: 'jump', x: 12, y: BTN_Y, w: BTN_W, h: BTN_H, text: L('↓ 乗り込み', '↓ LOAD'), sub: L('ライン直前で', 'just before the line') });
@@ -1092,6 +1127,7 @@ if (typeof document !== 'undefined') (function () {
     else if (b.id === 'jump') jump();
     else if (b.id === 'push') mash();
     else if (b.id === 'mute') sfx.toggle();
+    else if (b.id === 'cPrev' || b.id === 'cNext') selectCourse(COURSE_IDX + (b.id === 'cPrev' ? -1 : 1));
     else if (b.id === 'share') shareResult();
     else if (b.id === 'rank') openRanking();
     else if (b.id === 'lang') { LANG = LANG === 'ja' ? 'en' : 'ja'; LS('bobsled_lang', LANG); }
@@ -1154,7 +1190,7 @@ if (typeof document !== 'undefined') (function () {
   // タイトル画面のコース切り替えボタン
   const SEL_Y = 196, SEL_H = 60;
   // タイトルのコース一覧：カードを横に3枚。4コース以上になったら選択中を中心にずらして見せる
-  const CARD_Y = 180, CARD_H = 150, CARD_N = 3, CARD_W = 124, CARD_GAP = 12;
+  const CARD_Y = 180, CARD_H = 150, CARD_N = 3, CARD_W = 104, CARD_GAP = 12;
   function titleCards() {
     const n = Math.min(CARD_N, COURSES.length);
     const first = clamp(COURSE_IDX - 1, 0, COURSES.length - n);
@@ -1219,16 +1255,11 @@ if (typeof document !== 'undefined') (function () {
       ctx.restore();
       // 名前と距離
       ctx.textAlign = 'center';
-      ctx.fillStyle = sel ? '#ffd166' : '#ffffff'; ctx.font = `900 ${def.name.length > 11 ? 12.5 : 14}px system-ui,"Hiragino Sans",sans-serif`;
+      ctx.fillStyle = sel ? '#ffd166' : '#ffffff'; ctx.font = `900 ${def.name.length > 10 ? 11 : 13}px system-ui,"Hiragino Sans",sans-serif`;
       ctx.fillText(def.name, c.x + c.w / 2, c.y + 124);
       ctx.fillStyle = '#9fc3e0'; ctx.font = 'bold 11px system-ui,"Hiragino Sans",sans-serif';
-      ctx.fillText(th.m + 'm ・ ' + th.curves + L('カーブ', ' curves'), c.x + c.w / 2, c.y + 141);
+      ctx.fillText(th.m + 'm・' + th.curves + L('カーブ', ' crv'), c.x + c.w / 2, c.y + 141);
     }
-    // 4コース以上のときの「まだある」印
-    const cs = titleCards();
-    ctx.fillStyle = '#4fc3f7'; ctx.font = '900 18px system-ui,sans-serif'; ctx.textAlign = 'center';
-    if (cs[0].i > 0) ctx.fillText('‹', cs[0].x - 9, CARD_Y + CARD_H / 2 + 6);
-    if (cs[cs.length - 1].i < COURSES.length - 1) ctx.fillText('›', cs[cs.length - 1].x + CARD_W + 9, CARD_Y + CARD_H / 2 + 6);
     ctx.textAlign = 'left';
   }
 
@@ -2041,18 +2072,18 @@ if (typeof document !== 'undefined') (function () {
       centerText('BOBSLED', 160, 40, '#ffffff', '900');
       // コース一覧（全景つき）
       drawCourseCards();
-      centerText(L(COURSE_DEF.sub, COURSE_DEF.subEn), 352, 13, '#ffffff', '700');
+      centerText((COURSE_DEF.cc ? flag(COURSE_DEF.cc) + ' ' : '') + L(COURSE_DEF.country[0], COURSE_DEF.country[1]) + '　' + L(COURSE_DEF.sub, COURSE_DEF.subEn), 350, 13, '#ffffff', '800');
+      centerText(L(COURSE_DEF.feat[0], COURSE_DEF.feat[1]), 370, 11.5, '#ffd166', '700');
       // 操作はこの3つだけ
       const keysHelp = [[L('SPACE 連打', 'Tap SPACE'), L('プッシュ', 'Push')], ['↓', L('乗り込み', 'Load in')], ['← →', L('操縦', 'Steer')]];
       keysHelp.forEach(([k, t], i) => {
-        const y = 382 + i * 30;
-        ctx.fillStyle = 'rgba(255,255,255,0.12)'; roundRect(110, y - 20, 130, 28, 7); ctx.fill();
+        const y = 404 + i * 27;
+        ctx.fillStyle = 'rgba(255,255,255,0.12)'; roundRect(110, y - 19, 130, 25, 7); ctx.fill();
         ctx.textAlign = 'center'; ctx.fillStyle = '#ffd166'; ctx.font = `900 ${k.length > 3 ? 15 : 22}px system-ui,"Hiragino Sans",sans-serif`;
         ctx.fillText(k, 175, y + (k.length > 3 ? -1 : 2));
         ctx.textAlign = 'left'; ctx.fillStyle = '#ffffff'; ctx.font = '800 16px system-ui,"Hiragino Sans",sans-serif';
         ctx.fillText(t, 262, y - 1);
       });
-      centerText(L('スマホは画面のボタンで', 'On phones, use the on-screen buttons'), 468, 11, '#9fc3e0', '600');
       centerText(L('自己ベスト ', 'PB ') + fmt(best) + L('　　コースレコード ', '    Record ') + (rec ? fmt(rec.t) + (rec.mine ? L('（あなた）', ' (you)') : rec.name ? ' (' + (rec.cc ? flag(rec.cc) + ' ' : '') + rec.name + ')' : '') : '--'), 490, 14, '#4fc3f7');
       centerText(L('SPACE でスタート', 'Press SPACE to start'), 626, 11, '#9fc3e0', '600');
     }
